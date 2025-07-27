@@ -6,4 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MetadataExtractor" Version="2.8.1" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />
+    <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
+    <PackageReference Include="System.Text.Json" Version="9.0.7" />
+  </ItemGroup>
+
 </Project>
