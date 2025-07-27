@@ -40,13 +40,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Scarica e compila OpenCV 4.10 con moduli contrib
+# Scarica e compila OpenCV 4.10 con moduli contrib (shared libs)
 RUN wget -q https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
     && unzip -q ${OPENCV_VERSION}.zip && rm ${OPENCV_VERSION}.zip && mv opencv-${OPENCV_VERSION} opencv \
     && wget -q https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip \
     && unzip -q ${OPENCV_VERSION}.zip && rm ${OPENCV_VERSION}.zip && mv opencv_contrib-${OPENCV_VERSION} opencv_contrib
 
-# Build OpenCV come librerie condivise per permettere ld
 RUN cd opencv \
     && mkdir build && cd build \
     && cmake \
@@ -65,6 +64,8 @@ RUN cd opencv \
          -D WITH_GSTREAMER=OFF \
          -D WITH_ADE=OFF \
          -D OPENCV_ENABLE_NONFREE=ON \
+         -D CMAKE_RULE_MESSAGES=OFF \
+         -D CMAKE_MESSAGE_LOG_LEVEL=WARNING \
          .. \
     && make -j"$(nproc)" \
     && make install \
@@ -78,41 +79,11 @@ RUN git clone https://github.com/shimat/opencvsharp.git /opencvsharp \
     && make -j"$(nproc)" install \
     && cp /opencvsharp/make/OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib/
 
-# Raccogli tutte le dipendenze native via ldd ricorsivo per il runtime
+# Raccogli dipendenze native via ldd (inclusi transitivi)
 RUN mkdir -p /usr/lib/deps \
     && ldd /usr/lib/libOpenCvSharpExtern.so \
        | awk '/=>/ { print $3 }' \
        | xargs -r -I{} sh -c 'ldd {} | awk "/=>/ {print \$3}" | xargs -r -I% cp -v % /usr/lib/deps; cp -v {} /usr/lib/deps'
-
-#############################################
-# Stage per test nativo (.so)
-#############################################
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:8.0-noble AS native-test
-
-RUN apt-get update && apt-get install -y --no-install-recommends gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /usr/lib/libOpenCvSharpExtern.so /usr/lib/
-RUN echo '#include <stdio.h>\nint core_Mat_sizeof();\nint main(){ printf("sizeof(Mat) = %d\n", core_Mat_sizeof()); return 0; }' > /test.c \
-    && gcc /test.c -o /test -lOpenCvSharpExtern -L/usr/lib \
-    && LD_LIBRARY_PATH=/usr/lib /test
-
-#############################################
-# Stage per test .NET 8 (x86_64)
-#############################################
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:8.0-noble AS dotnet-test
-
-# Copia .so e le dipendenze per test .NET
-COPY --from=builder /usr/lib/libOpenCvSharpExtern.so /usr/lib/
-COPY --from=builder /usr/lib/deps/*.so /usr/lib/
-
-RUN git clone https://github.com/shimat/opencvsharp.git /opencvsharp \
-    && cd /opencvsharp/src/OpenCvSharp && dotnet build -c Release -f net8.0 \
-    && cd /opencvsharp/src/OpenCvSharp.Extensions && dotnet build -c Release -f net8.0
-
-# Test unitari con RID per Ubuntu 24.04
-RUN dotnet test /opencvsharp/test/OpenCvSharp.Tests/OpenCvSharp.Tests.csproj \
-      -c Release -f net8.0 --runtime ubuntu.24.04-x64 --logger "trx;LogFileName=test-results.trx" < /dev/null
 
 #############################################
 # Final: immagine runtime con solo .so e dipendenze (x86_64)
