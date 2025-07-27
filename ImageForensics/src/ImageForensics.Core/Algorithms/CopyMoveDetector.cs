@@ -1,0 +1,73 @@
+using System.IO;
+using System.Linq;
+using OpenCvSharp;
+using OpenCvSharp.Features2D;
+
+namespace ImageForensics.Core.Algorithms;
+
+public static class CopyMoveDetector
+{
+    public static (double Score, string MaskPath) Analyze(
+        string imagePath,
+        string maskDir,
+        int featureCount,
+        double matchMaxDist,
+        double ransacReprojThresh,
+        double ransacConfidence)
+    {
+        Directory.CreateDirectory(maskDir);
+        string baseName = Path.GetFileNameWithoutExtension(imagePath);
+        string maskPath = Path.Combine(maskDir, $"{baseName}_copymove.png");
+
+        using var img = Cv2.ImRead(imagePath, ImreadModes.Grayscale);
+        if (img.Empty())
+            return (0.0, maskPath);
+
+        using var sift = SIFT.Create(featureCount);
+        using var descriptors = new Mat();
+        sift.DetectAndCompute(img, null, out KeyPoint[] keypoints, descriptors);
+
+        if (descriptors.Empty() || keypoints.Length < 2)
+        {
+            Cv2.ImWrite(maskPath, new Mat(img.Size(), MatType.CV_8UC1, Scalar.Black));
+            return (0.0, maskPath);
+        }
+
+        using var matcher = new BFMatcher(NormTypes.L2, crossCheck: true);
+        var matches = matcher.Match(descriptors, descriptors)
+            .Where(m => m.QueryIdx != m.TrainIdx && m.Distance < matchMaxDist)
+            .ToArray();
+
+        if (matches.Length < 3)
+        {
+            Cv2.ImWrite(maskPath, new Mat(img.Size(), MatType.CV_8UC1, Scalar.Black));
+            return (0.0, maskPath);
+        }
+
+        var srcPts = matches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
+        var dstPts = matches.Select(m => keypoints[m.TrainIdx].Pt).ToArray();
+
+        using var srcArr = InputArray.Create(srcPts);
+        using var dstArr = InputArray.Create(dstPts);
+        using var inliers = new Mat();
+        Cv2.EstimateAffine2D(srcArr, dstArr, inliers, RobustEstimationAlgorithms.RANSAC,
+            ransacReprojThresh, 2000, ransacConfidence, 10);
+
+        inliers.GetArray(out byte[] maskData);
+        int inlierCount = maskData.Count(b => b != 0);
+
+        using var mask = new Mat(img.Size(), MatType.CV_8UC1, Scalar.Black);
+        for (int i = 0; i < maskData.Length; i++)
+        {
+            if (maskData[i] != 0)
+            {
+                var pt = srcPts[i];
+                Cv2.Circle(mask, (int)pt.X, (int)pt.Y, 5, Scalar.White, -1);
+            }
+        }
+
+        Cv2.ImWrite(maskPath, mask);
+        double score = inlierCount / (double)matches.Length;
+        return (score, maskPath);
+    }
+}

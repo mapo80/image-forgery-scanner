@@ -12,10 +12,18 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 {
     public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
     {
-        var (score, mapPath) = ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality);
+        var (elaScore, elaMapPath) = ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality);
 
-        string verdict = score < 0.018 ? "Clean" : score < 0.022 ? "Suspicious" : "Tampered";
-        var result = new ForensicsResult(score, mapPath, verdict);
+        var (cmScore, cmMaskPath) = CopyMoveDetector.Analyze(
+            imagePath,
+            options.CopyMoveMaskDir,
+            options.CopyMoveFeatureCount,
+            options.CopyMoveMatchDistance,
+            options.CopyMoveRansacReproj,
+            options.CopyMoveRansacProb);
+
+        string verdict = elaScore < 0.018 ? "Clean" : elaScore < 0.022 ? "Suspicious" : "Tampered";
+        var result = new ForensicsResult(elaScore, elaMapPath, verdict, cmScore, cmMaskPath);
         return Task.FromResult(result);
     }
 }
