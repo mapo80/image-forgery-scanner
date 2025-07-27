@@ -14,7 +14,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
     {
         var (score, mapPath) = ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality);
 
-        string verdict = score < 0.15 ? "Clean" : score < 0.35 ? "Suspicious" : "Tampered";
+        string verdict = score < 0.018 ? "Clean" : score < 0.022 ? "Suspicious" : "Tampered";
         var result = new ForensicsResult(score, mapPath, verdict);
         return Task.FromResult(result);
     }
