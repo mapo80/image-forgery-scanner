@@ -46,12 +46,13 @@ RUN wget -q https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
     && wget -q https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip \
     && unzip -q ${OPENCV_VERSION}.zip && rm ${OPENCV_VERSION}.zip && mv opencv_contrib-${OPENCV_VERSION} opencv_contrib
 
+# Build OpenCV come librerie condivise per permettere ld
 RUN cd opencv \
     && mkdir build && cd build \
     && cmake \
          -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
          -D CMAKE_BUILD_TYPE=RELEASE \
-         -D BUILD_SHARED_LIBS=OFF \
+         -D BUILD_SHARED_LIBS=ON \
          -D ENABLE_CXX11=ON \
          -D BUILD_EXAMPLES=OFF \
          -D BUILD_DOCS=OFF \
@@ -77,11 +78,11 @@ RUN git clone https://github.com/shimat/opencvsharp.git /opencvsharp \
     && make -j"$(nproc)" install \
     && cp /opencvsharp/make/OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib/
 
-# Raccogli tutte le dipendenze native via ldd per il runtime
+# Raccogli tutte le dipendenze native via ldd ricorsivo per il runtime
 RUN mkdir -p /usr/lib/deps \
     && ldd /usr/lib/libOpenCvSharpExtern.so \
        | awk '/=>/ { print $3 }' \
-       | xargs -r -I{} cp -v {} /usr/lib/deps
+       | xargs -r -I{} sh -c 'ldd {} | awk "/=>/ {print \$3}" | xargs -r -I% cp -v % /usr/lib/deps; cp -v {} /usr/lib/deps'
 
 #############################################
 # Stage per test nativo (.so)
