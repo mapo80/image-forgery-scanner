@@ -24,13 +24,11 @@ public static class ElaAnalyzer
         ms.Position = 0;
         using var compReloaded = new MagickImage(ms);
 
-        using var diff = orig.Clone();
-        diff.Composite(compReloaded, CompositeOperator.Difference);
+        using var diff = new MagickImage();
+        double score = orig.Compare(compReloaded, ErrorMetric.RootMeanSquared, diff);
         diff.Depth = 8;
         diff.Write(mapPath, MagickFormat.Png);
 
-        var stats = diff.Statistics();
-        double score = stats.GetChannel(PixelChannel.Red)!.Mean / Quantum.Max;
         return (score, mapPath);
     }
 }

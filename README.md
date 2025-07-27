@@ -25,3 +25,17 @@ cd TestOpenCvSharp
 export PATH="$HOME/dotnet:$PATH"
 dotnet run
 ```
+
+## Dataset
+
+The sample images used for testing are from the [CASIA 2.0 Image Tampering Detection Dataset](https://www.kaggle.com/datasets/divg07/casia-20-image-tampering-detection-dataset?resource=download).
+They are organized in `dataset/authentic` and `dataset/tampered`.
+
+## ELA benchmark
+
+Average processing time for the dataset images (release build):
+
+| Category   | Avg ms |
+|------------|-------:|
+| Authentic  | 76 |
+| Tampered   | 113 |
