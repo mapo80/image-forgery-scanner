@@ -33,7 +33,7 @@ cd opencv/build
 cmake .. \
     -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
     -D CMAKE_BUILD_TYPE=Release \
-    -D BUILD_LIST=core,imgproc,imgcodecs,highgui,features2d,calib3d,xfeatures2d \
+    -D BUILD_LIST=core,imgproc,imgcodecs,videoio,video,highgui,features2d,calib3d,objdetect,photo,ml,flann,stitching,dnn,shape,xfeatures2d \
     -D BUILD_SHARED_LIBS=OFF \
     -D BUILD_EXAMPLES=OFF \
     -D BUILD_TESTS=OFF \
