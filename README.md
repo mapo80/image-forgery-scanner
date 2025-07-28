@@ -205,7 +205,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-07-28** – 44 test completati con successo (incluso il dataset duplicato).
+Ultima esecuzione test: **2025-07-28** – 46 test completati con successo (incluso il dataset duplicato).
 
 ### Riepilogo test
 
@@ -352,6 +352,7 @@ contrassegnate come tampered.
 | 002_F_JC2.jpg | 0.000 | 2589 |
 | 002_F_IB1.png | 0.000 | 2807 |
 | 001_O_JC9.jpg | 0.000 | 2964 |
+| 001_O_JC9.jpg | 0.000 | 2964 |
 
 ### Deepfake detection (dataset `deepfake`)
 Risultati su un sottoinsieme di frame reali e falsi. Tutti i file
@@ -368,6 +369,19 @@ sono processati con il modulo Noiseprint.
 | **Average real** |  | **0.239** | **6776** |
 | **Average fake** |  | **0.239** | **6173** |
 
+### Metadata Checker (dataset `exif`)
+Risultati su un sottoinsieme di immagini con metadati integri e manipolati.
+
+| Cartella | Image | ms | Anomalie rilevate | Esito |
+|----------|-------|---:|------------------|:----:|
+| original | 156065.jpg | 2410 | DateTimeOriginal, Model | ✓ |
+| original | 157055.jpg | 2310 | DateTimeOriginal, Model | ✓ |
+| original | 159008.jpg | 2379 | DateTimeOriginal, Model | ✓ |
+| **Media original** | | **2366** | | |
+| exif_edited | 156065.jpg | 2368 | Model, GPS | ✓ |
+| exif_edited | 157055.jpg | 2532 | Model, GPS | ✓ |
+| exif_edited | 159008.jpg | 2590 | Model, GPS | ✓ |
+| **Media edited** | | **2497** | | |
 ## Contributi e licenze
 Le librerie utilizzate sono soggette alle rispettive licenze open source:
 - **OpenCvSharp** (BSD-3-Clause)
