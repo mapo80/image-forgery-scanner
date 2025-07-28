@@ -160,7 +160,7 @@ Usa SIFT e RANSAC per individuare regioni duplicate all'interno della stessa imm
 Basato sul modello ONNX **ManTraNet** eseguito con ONNX Runtime. Richiede `mantranet_256x256.onnx` sotto `Models/onnx`. Restituisce una heat‑map e uno score compreso tra 0 e 1.
 
 ### Inpainting / Deepfake Detection
-Sfrutta i modelli Noiseprint in formato ONNX (`noiseprint_gray.onnx`, `noiseprint_color.onnx`). La heat‑map evidenzia possibili aree inpainted; lo score corrisponde al suo valore medio normalizzato.
+Utilizza i modelli Noiseprint specifici per ogni fattore di qualità JPEG (`model_qfXX.onnx`) presenti in `noiseprint`. Il modulo stima la qualità con `JpegQualityEstimator` e carica il modello corrispondente (per PNG usa `model_qf101.onnx`). L'immagine viene convertita in scala di grigi, ridimensionata a `NoiseprintInputSize` (320 di default) e analizzata. La heat-map risultante evidenzia le zone potenzialmente inpainted; lo score è la media normalizzata di tale mappa.
 
 ### Metadata Checker
 Utilizza la libreria `MetadataExtractor` per analizzare EXIF/XMP/IPTC. Vengono controllati `DateTimeOriginal`, `Software`, `Make/Model` e i tag GPS. Ogni anomalia incrementa lo score (range 0‑1). Se `MetadataMapDir` è impostato viene scritto un report JSON con tutti i tag.
@@ -204,8 +204,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
-Ultima esecuzione test: **2025-07-28** – 43 test completati con successo (incluso il dataset duplicato).
-
+Ultima esecuzione test: **2025-07-28** – impossibile completare l'intera suite (dataset mancante). Sono presenti 43 test totali.
 ### Riepilogo test
 
 | Test                                   | Controlli verificati |
