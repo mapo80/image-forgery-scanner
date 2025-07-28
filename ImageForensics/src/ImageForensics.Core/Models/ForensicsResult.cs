@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace ImageForensics.Core.Models;
 
 public record ForensicsResult(
@@ -11,4 +13,7 @@ public record ForensicsResult(
     public string SplicingMapPath { get; init; } = string.Empty;
     public double InpaintingScore   { get; init; }
     public string InpaintingMapPath { get; init; } = string.Empty;
+
+    public double ExifScore { get; init; }
+    public IReadOnlyDictionary<string, string?> ExifAnomalies { get; init; } = new Dictionary<string, string?>();
 }

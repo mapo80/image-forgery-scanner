@@ -54,6 +54,16 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             InpaintingMapPath = ipMap
         };
 
+        var (exifScore, exifAnomalies) = ExifChecker.Analyze(
+            imagePath,
+            options.MetadataMapDir,
+            options.ExpectedCameraModels);
+        result = result with
+        {
+            ExifScore = exifScore,
+            ExifAnomalies = exifAnomalies
+        };
+
         return Task.FromResult(result);
     }
 }

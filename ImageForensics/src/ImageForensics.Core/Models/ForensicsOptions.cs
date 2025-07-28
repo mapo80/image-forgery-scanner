@@ -19,4 +19,11 @@ public record ForensicsOptions
     public string NoiseprintModelsDir { get; init; } = "ImageForensics/src/Models/onnx/noiseprint";
     public int    NoiseprintInputSize { get; init; } = 320;
     public string NoiseprintMapDir    { get; init; } = "results";
+
+    public string MetadataMapDir      { get; init; } = "results";
+    public string[] ExpectedCameraModels { get; init; } = new[]
+    {
+        "Canon EOS 80D",
+        "Nikon D850"
+    };
 }

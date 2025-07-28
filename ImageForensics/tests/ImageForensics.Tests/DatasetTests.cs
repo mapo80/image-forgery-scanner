@@ -26,7 +26,11 @@ public class DatasetTests
     public async Task Authentic_Images_AreProcessed(string path)
     {
         var analyzer = new ForensicsAnalyzer();
-        var options = new ForensicsOptions { WorkDir = Path.GetTempPath() };
+        var options = new ForensicsOptions
+        {
+            WorkDir = Path.GetTempPath(),
+            NoiseprintModelsDir = AppContext.BaseDirectory
+        };
         var res = await analyzer.AnalyzeAsync(path, options);
         res.ElaScore.Should().BeGreaterThan(0);
     }
@@ -36,7 +40,11 @@ public class DatasetTests
     public async Task Tampered_Images_AreProcessed(string path)
     {
         var analyzer = new ForensicsAnalyzer();
-        var options = new ForensicsOptions { WorkDir = Path.GetTempPath() };
+        var options = new ForensicsOptions
+        {
+            WorkDir = Path.GetTempPath(),
+            NoiseprintModelsDir = AppContext.BaseDirectory
+        };
         var res = await analyzer.AnalyzeAsync(path, options);
         res.ElaScore.Should().BeGreaterThan(0);
     }
@@ -45,7 +53,11 @@ public class DatasetTests
     public async Task Measure_Processing_Times()
     {
         var analyzer = new ForensicsAnalyzer();
-        var options = new ForensicsOptions { WorkDir = Path.GetTempPath() };
+        var options = new ForensicsOptions
+        {
+            WorkDir = Path.GetTempPath(),
+            NoiseprintModelsDir = AppContext.BaseDirectory
+        };
 
         double authTotal = 0;
         var authPaths = Directory.GetFiles(Path.Combine(DataDir, "authentic"), "*.jpg");

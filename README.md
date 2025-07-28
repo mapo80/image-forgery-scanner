@@ -185,6 +185,11 @@ The following table reports the processing time for each image in the demo
 dataset (milliseconds on a typical container). The last row shows the category
 average.
 
+The times were recorded by the `DatasetTests.Measure_Processing_Times` test. Each
+file was processed once with every available detector. On the reference machine
+an authentic photo takes about **3.5&nbsp;s**, while tampered images average
+slightly above **3.5&nbsp;s**.
+
 ### Authentic
 
 | Image | ms |
@@ -216,3 +221,11 @@ average.
 | Tp_D_CNN_M_N_ind00091_ind00091_10647.jpg | 3429 |
 | Tp_D_CNN_M_N_ind00091_ind00091_10648.jpg | 3361 |
 | **Average** | **3513** |
+## Metadata Checking
+
+The EXIF/XMP/IPTC metadata of input images are analysed using the [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) library. The analyzer verifies `DateTimeOriginal`, `Software`, `Make/Model` and GPS tags. Anomalies such as missing or future timestamps, editing software strings, and unexpected camera models contribute to an `ExifScore` in the range [0‑1].
+
+Internally `ExifChecker` loads all metadata directories and checks the four tags above. The score is computed as `anomalyCount / 4` and clamped to the unit interval. When `MetadataMapDir` is set, a JSON file is written with every parsed tag and the detected anomalies. This allows manual inspection of the metadata used for scoring.
+
+All parsed tags together with any detected anomalies can be written to `ForensicsOptions.MetadataMapDir` as a JSON report. Test images for this feature must be placed in `tests/ImageForensics.Tests/testdata`. Reports are generated in the same folder used for the other analysis maps.
+
