@@ -204,7 +204,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
-Ultima esecuzione test: **2025-07-28** – 3 test completati con successo (2 OpenCvSharp, 1 Ela).
+Ultima esecuzione test: **2025-07-28** – 43 test completati con successo (incluso il dataset duplicato).
 
 ### Riepilogo test
 
@@ -314,6 +314,43 @@ I dati seguenti provengono dal test `DatasetTests.Measure_Processing_Times` e mo
 | Tp_D_CNN_M_N_ind00091_ind00091_10647.jpg | 3429 |
 | Tp_D_CNN_M_N_ind00091_ind00091_10648.jpg | 3361 |
 | **Average** | **3513** |
+
+### Copy‑Move detection (dataset `duplicated`)
+Risultati per il dataset di immagini con regioni duplicate. Tutte le foto sono
+contrassegnate come tampered.
+
+| Image | Score | ms |
+|-------|------:|---:|
+| 002_F_JC8.jpg | 0.000 | 3348 |
+| 001_O_NA2.png | 0.000 | 2891 |
+| 002_B.png | 0.000 | 2674 |
+| 002_F_JC3.jpg | 0.000 | 2725 |
+| 001_O_JC6.jpg | 0.000 | 2836 |
+| 002_F_CA1.png | 0.000 | 2897 |
+| 002_F_IB2.png | 0.000 | 2703 |
+| 001_O_NA3.png | 0.000 | 2921 |
+| 002_F_IB3.png | 0.000 | 2681 |
+| 001_O_JC7.jpg | 0.000 | 2590 |
+| 002_F_JC7.jpg | 0.000 | 2720 |
+| 002_F_CR2.png | 0.000 | 2924 |
+| 002_F_JC5.jpg | 0.000 | 2681 |
+| 001_O_NA1.png | 0.000 | 2794 |
+| 002_F_BC2.png | 0.000 | 2982 |
+| 002_F_CA2.png | 0.000 | 3034 |
+| 002_F_JC6.jpg | 0.000 | 2677 |
+| 002_F_CA3.png | 0.000 | 3038 |
+| 002_F_JC1.jpg | 0.000 | 2801 |
+| 002_F_CR1.png | 0.000 | 2909 |
+| 001_O.png | 0.000 | 2925 |
+| 002_F_BC1.png | 0.000 | 2782 |
+| 002_F_JC4.jpg | 0.000 | 2743 |
+| 001_O_JC5.jpg | 0.000 | 2828 |
+| 002_F_CR3.png | 0.000 | 2897 |
+| 001_O_JC8.jpg | 0.000 | 2757 |
+| 002_F_BC3.png | 0.000 | 2753 |
+| 002_F_JC2.jpg | 0.000 | 2589 |
+| 002_F_IB1.png | 0.000 | 2807 |
+| 001_O_JC9.jpg | 0.000 | 2964 |
 
 ## Contributi e licenze
 Le librerie utilizzate sono soggette alle rispettive licenze open source:
