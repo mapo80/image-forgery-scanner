@@ -93,4 +93,6 @@ else if (image != null)
     Console.WriteLine($"Splicing map   : {res.SplicingMapPath}");
     Console.WriteLine($"Inpainting score : {res.InpaintingScore:F3}");
     Console.WriteLine($"Inpainting map   : {res.InpaintingMapPath}");
+    Console.WriteLine($"Total score   : {res.TotalScore:F3}");
+    Console.WriteLine($"Final verdict : {res.Verdict}");
 }

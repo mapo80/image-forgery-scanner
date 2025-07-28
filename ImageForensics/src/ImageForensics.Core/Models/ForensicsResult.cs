@@ -16,4 +16,8 @@ public record ForensicsResult(
 
     public double ExifScore { get; init; }
     public IReadOnlyDictionary<string, string?> ExifAnomalies { get; init; } = new Dictionary<string, string?>();
+
+    // Aggregated score produced by the decision engine
+    // combining all individual detectors.
+    public double TotalScore { get; init; }
 }
