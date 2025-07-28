@@ -12,18 +12,30 @@ namespace ImageForensics.Core.Algorithms;
 /// </summary>
 public static class NoiseprintSdkWrapper
 {
-    private static bool _loaded;
+    private static int _currentQf = -1;
+
+    /// <summary>Quality factor of the currently loaded model.</summary>
+    public static int LoadedQf => _currentQf;
 
     public static (double Score, string MapPath) Run(
         string imagePath,
         string mapDir,
-        string modelPath,
+        string modelsDir,
         int inputSize)
     {
-        if (!_loaded)
+        var estimator = new JpegQualityEstimator();
+        int qf = estimator.EstimateQuality(imagePath) ?? 101;
+        string modelPath = Path.Combine(modelsDir, $"model_qf{qf}.onnx");
+        if (!File.Exists(modelPath))
+        {
+            modelPath = Path.Combine(modelsDir, "model_qf101.onnx");
+            qf = 101;
+        }
+
+        if (_currentQf != qf)
         {
             NoisePrintSdk.LoadModel(modelPath);
-            _loaded = true;
+            _currentQf = qf;
         }
 
         Directory.CreateDirectory(mapDir);
@@ -33,13 +45,14 @@ public static class NoiseprintSdkWrapper
         var sw = Stopwatch.StartNew();
 
         using Mat bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
+        using Mat gray = new();
+        Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
         using Mat resized = new();
-        Cv2.Resize(bgr, resized, new Size(inputSize, inputSize));
-        resized.ConvertTo(resized, MatType.CV_32FC3, 1.0 / 255.0);
-        Cv2.CvtColor(resized, resized, ColorConversionCodes.BGR2RGB);
+        Cv2.Resize(gray, resized, new Size(inputSize, inputSize));
+        resized.ConvertTo(resized, MatType.CV_32FC1, 1.0 / 255.0);
 
-        var tensor = new DenseTensor<float>(new[] { 1, 3, inputSize, inputSize });
-        float[] data = new float[inputSize * inputSize * 3];
+        var tensor = new DenseTensor<float>(new[] { 1, 1, inputSize, inputSize });
+        float[] data = new float[inputSize * inputSize];
         Marshal.Copy(resized.Data, data, 0, data.Length);
         data.AsSpan().CopyTo(tensor.Buffer.Span);
 

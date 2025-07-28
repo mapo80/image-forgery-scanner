@@ -45,7 +45,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         var (ipScore, ipMap) = NoiseprintSdkWrapper.Run(
             imagePath,
             options.NoiseprintMapDir,
-            options.NoiseprintModelPath,
+            options.NoiseprintModelsDir,
             options.NoiseprintInputSize);
 
         result = result with
