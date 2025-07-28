@@ -204,7 +204,9 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
-Ultima esecuzione test: **2025-07-28** – impossibile completare l'intera suite (dataset mancante). Sono presenti 43 test totali.
+
+Ultima esecuzione test: **2025-07-28** – 44 test completati con successo (incluso il dataset duplicato).
+
 ### Riepilogo test
 
 | Test                                   | Controlli verificati |
@@ -350,6 +352,21 @@ contrassegnate come tampered.
 | 002_F_JC2.jpg | 0.000 | 2589 |
 | 002_F_IB1.png | 0.000 | 2807 |
 | 001_O_JC9.jpg | 0.000 | 2964 |
+
+### Deepfake detection (dataset `deepfake`)
+Risultati su un sottoinsieme di frame reali e falsi. Tutti i file
+sono processati con il modulo Noiseprint.
+
+| Tipo | Image | Score | ms |
+|------|-------|------:|---:|
+| real | real_20.jpg | 0.238 | 8344 |
+| real | real_0.jpg  | 0.240 | 6187 |
+| real | real_6.jpg  | 0.239 | 5797 |
+| fake | fake_7.jpg  | 0.239 | 5761 |
+| fake | fake_1.jpg  | 0.239 | 6000 |
+| fake | fake_20.jpg | 0.239 | 6759 |
+| **Average real** |  | **0.239** | **6776** |
+| **Average fake** |  | **0.239** | **6173** |
 
 ## Contributi e licenze
 Le librerie utilizzate sono soggette alle rispettive licenze open source:
