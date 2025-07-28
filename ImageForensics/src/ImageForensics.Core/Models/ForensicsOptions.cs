@@ -26,4 +26,16 @@ public record ForensicsOptions
         "Canon EOS 80D",
         "Nikon D850"
     };
+
+    // Weights used by the decision engine when combining the partial
+    // scores into a single value.
+    public double ElaWeight        { get; init; } = 1.0;
+    public double CopyMoveWeight   { get; init; } = 1.0;
+    public double SplicingWeight   { get; init; } = 1.0;
+    public double InpaintingWeight { get; init; } = 1.0;
+    public double ExifWeight       { get; init; } = 1.0;
+
+    // Thresholds separating the three final verdict classes.
+    public double CleanThreshold    { get; init; } = 0.2;
+    public double TamperedThreshold { get; init; } = 0.8;
 }

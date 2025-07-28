@@ -61,6 +61,13 @@ The application prints several metrics and saves diagnostic images in `DIR`
 | `NoiseprintModelsDir`    | Directory containing Noiseprint ONNX models | `ImageForensics/src/Models/onnx/noiseprint` |
 | `NoiseprintInputSize`    | Resize size fed into the Noiseprint model | `320` |
 | `NoiseprintMapDir`       | Directory where the Noiseprint heat-map is saved   | `results` |
+| `ElaWeight`              | Weight of the ELA score in the final decision | `1.0` |
+| `CopyMoveWeight`         | Weight of the copy‑move score | `1.0` |
+| `SplicingWeight`         | Weight of the splicing score | `1.0` |
+| `InpaintingWeight`       | Weight of the inpainting score | `1.0` |
+| `ExifWeight`             | Weight of the EXIF score | `1.0` |
+| `CleanThreshold`         | Score below this value is considered `Clean` | `0.2` |
+| `TamperedThreshold`      | Score above this value is considered `Tampered` | `0.8` |
 
 ### Output fields
 
@@ -70,7 +77,8 @@ The application prints several metrics and saves diagnostic images in `DIR`
 |--------------------|--------------------------------------------------------------------------------------|
 | `ElaScore`         | Normalised error level analysis score. Low values indicate likely authentic images. |
 | `ElaMapPath`       | Path of the PNG heat‑map highlighting compression artefacts.                         |
-| `Verdict`          | Quick qualitative judgement based solely on `ElaScore`.                              |
+| `Verdict`          | Final decision after aggregating all detectors.                                     |
+| `TotalScore`       | Weighted sum of all individual scores.                                              |
 | `CopyMoveScore`    | Ratio of matched keypoints consistent with a geometric transform.                   |
 | `CopyMoveMaskPath` | Path of the mask image showing detected copy‑move regions.                           |
 | `InpaintingScore`  | Mean value of the Noiseprint heat-map in [0‑1].                                    |
@@ -228,4 +236,34 @@ The EXIF/XMP/IPTC metadata of input images are analysed using the [MetadataExtra
 Internally `ExifChecker` loads all metadata directories and checks the four tags above. The score is computed as `anomalyCount / 4` and clamped to the unit interval. When `MetadataMapDir` is set, a JSON file is written with every parsed tag and the detected anomalies. This allows manual inspection of the metadata used for scoring.
 
 All parsed tags together with any detected anomalies can be written to `ForensicsOptions.MetadataMapDir` as a JSON report. Test images for this feature must be placed in `tests/ImageForensics.Tests/testdata`. Reports are generated in the same folder used for the other analysis maps.
+
+## Decision Engine
+
+The decision engine combines all detector scores using configurable weights and computes an aggregated value:
+
+```
+score = ElaScore * ElaWeight +
+        CopyMoveScore * CopyMoveWeight +
+        SplicingScore * SplicingWeight +
+        InpaintingScore * InpaintingWeight +
+        ExifScore * ExifWeight
+```
+
+If the score is below `CleanThreshold` the image is **Clean**. Between the two thresholds the result is **Suspicious**. A score above `TamperedThreshold` produces a **Tampered** verdict.
+
+Example output:
+
+```
+ELA score : 0.010
+Verdict   : Clean
+Heat-map  : results/photo_ela.png
+CopyMove score : 0.000
+CopyMove mask  : results/photo_copymove.png
+Splicing score : 0.042
+Splicing map   : results/photo_splicing.png
+Inpainting score : 0.015
+Inpainting map   : results/photo_inpainting.png
+Total score   : 0.067
+Final verdict : Clean
+```
 

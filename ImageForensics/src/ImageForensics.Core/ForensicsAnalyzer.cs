@@ -22,8 +22,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             options.CopyMoveRansacReproj,
             options.CopyMoveRansacProb);
 
-        string verdict = elaScore < 0.018 ? "Clean" : elaScore < 0.022 ? "Suspicious" : "Tampered";
-        var result = new ForensicsResult(elaScore, elaMapPath, verdict, cmScore, cmMaskPath);
+        var result = new ForensicsResult(elaScore, elaMapPath, string.Empty, cmScore, cmMaskPath);
 
         string modelPath = options.SplicingModelPath;
         if (!File.Exists(modelPath))
@@ -62,6 +61,13 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             ExifScore = exifScore,
             ExifAnomalies = exifAnomalies
+        };
+
+        var (total, verdict) = DecisionEngine.Decide(result, options);
+        result = result with
+        {
+            Verdict = verdict,
+            TotalScore = total
         };
 
         return Task.FromResult(result);
