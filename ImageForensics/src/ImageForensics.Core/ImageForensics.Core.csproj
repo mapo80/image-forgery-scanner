@@ -18,6 +18,9 @@
     <None Include="..\Models\onnx\mantranet_256x256.onnx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Models\onnx\noiseprint_spp.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

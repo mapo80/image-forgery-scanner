@@ -9,4 +9,6 @@ public record ForensicsResult(
 {
     public double SplicingScore   { get; init; }
     public string SplicingMapPath { get; init; } = string.Empty;
+    public double InpaintingScore   { get; init; }
+    public string InpaintingMapPath { get; init; } = string.Empty;
 }

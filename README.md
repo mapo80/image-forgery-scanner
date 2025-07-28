@@ -58,6 +58,9 @@ The application prints several metrics and saves diagnostic images in `DIR`
 | `CopyMoveRansacReproj`   | RANSAC reprojection threshold in pixels                   | `3.0`   |
 | `CopyMoveRansacProb`     | Desired RANSAC success probability                        | `0.99`  |
 | `CopyMoveMaskDir`        | Directory where the copy‑move mask is written             | `results` |
+| `NoiseprintModelPath`    | Path of the Noiseprint ONNX model                  | `src/Models/onnx/noiseprint_spp.onnx` |
+| `NoiseprintInputSize`    | Resize size fed into the Noiseprint model          | `320` |
+| `NoiseprintMapDir`       | Directory where the Noiseprint heat-map is saved   | `results` |
 
 ### Output fields
 
@@ -70,6 +73,8 @@ The application prints several metrics and saves diagnostic images in `DIR`
 | `Verdict`          | Quick qualitative judgement based solely on `ElaScore`.                              |
 | `CopyMoveScore`    | Ratio of matched keypoints consistent with a geometric transform.                   |
 | `CopyMoveMaskPath` | Path of the mask image showing detected copy‑move regions.                           |
+| `InpaintingScore`  | Mean value of the Noiseprint heat-map in [0‑1].                                    |
+| `InpaintingMapPath`| Path of the Noiseprint heat-map highlighting inpainted areas.                      |
 
 ## Splicing Detection
 
@@ -105,6 +110,21 @@ Run a benchmark with:
 
 ```bash
 dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark --benchdir <folder>
+```
+
+## Noiseprint Inpainting Detection
+
+This feature relies on `noiseprint_spp.onnx` from the
+[mapo80/noiseprint-pytorch](https://github.com/mapo80/noiseprint-pytorch) project.
+Download the model with `tools/download_models.sh` and place it under
+`src/Models/onnx`.
+Add test images (e.g. `clean.png` and `inpainting.png`) to
+`tests/ImageForensics.Tests/testdata`.
+
+Run a benchmark with:
+
+```bash
+dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-inpainting --benchdir <folder>
 ```
 
 ## ELA benchmark

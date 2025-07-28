@@ -42,6 +42,18 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             SplicingMapPath = spMap
         };
 
+        var (ipScore, ipMap) = NoiseprintSdkWrapper.Run(
+            imagePath,
+            options.NoiseprintMapDir,
+            options.NoiseprintModelPath,
+            options.NoiseprintInputSize);
+
+        result = result with
+        {
+            InpaintingScore   = ipScore,
+            InpaintingMapPath = ipMap
+        };
+
         return Task.FromResult(result);
     }
 }

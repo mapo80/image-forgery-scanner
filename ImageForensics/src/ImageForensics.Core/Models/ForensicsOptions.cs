@@ -15,4 +15,8 @@ public record ForensicsOptions
     public int    SplicingInputWidth  { get; init; } = 256;
     public int    SplicingInputHeight { get; init; } = 256;
     public string SplicingMapDir      { get; init; } = "results";
+
+    public string NoiseprintModelPath { get; init; } = "src/Models/onnx/noiseprint_spp.onnx";
+    public int    NoiseprintInputSize { get; init; } = 320;
+    public string NoiseprintMapDir    { get; init; } = "results";
 }
