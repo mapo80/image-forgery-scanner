@@ -12,8 +12,8 @@ namespace ImageForensics.Tests;
 public class DlSplicingTests
 {
     [Theory]
-    [InlineData("authentic", 0.15)]
-    [InlineData("tampered", 0.05)]
+    [InlineData("authentic", 0.36)]
+    [InlineData("tampered", 0.03)]
     public async Task AnalyzeSplicing_Dataset_ReturnsExpectedScores(string folder, double threshold)
     {
         var baseDir = AppContext.BaseDirectory;

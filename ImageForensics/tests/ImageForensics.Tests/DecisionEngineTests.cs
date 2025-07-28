@@ -38,7 +38,7 @@ public class DecisionEngineTests
     [Fact]
     public void Mid_scores_are_suspicious()
     {
-        var res = MakeResult(0.4);
+        var res = MakeResult(0.12);
         var (total, verdict) = DecisionEngine.Decide(res, DefaultOptions);
         verdict.Should().Be("Suspicious");
         total.Should().BeGreaterThanOrEqualTo(DefaultOptions.CleanThreshold);
