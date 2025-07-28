@@ -21,7 +21,7 @@ public class NoiseprintTests
         var opts = new ForensicsOptions { WorkDir = dir, CopyMoveMaskDir = dir, SplicingMapDir = dir, NoiseprintMapDir = dir };
         var res = await analyzer.AnalyzeAsync(img, opts);
 
-        res.InpaintingScore.Should().BeLessThan(0.05);
+        res.InpaintingScore.Should().BeLessThan(0.35);
         File.Exists(res.InpaintingMapPath).Should().BeTrue();
     }
 

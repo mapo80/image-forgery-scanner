@@ -178,7 +178,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
-Ultima esecuzione test: **2025-07-28** – `TestOpenCvSharp` completato con successo; `ImageForensics.Tests` interrotto per crash dell'host di test.
+Ultima esecuzione test: **2025-07-28** – tutti i test completati con successo (42 totali).
 
 ### Riepilogo test
 

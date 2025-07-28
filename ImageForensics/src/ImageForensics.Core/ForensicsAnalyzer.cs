@@ -25,8 +25,15 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         var result = new ForensicsResult(elaScore, elaMapPath, string.Empty, cmScore, cmMaskPath);
 
         string modelPath = options.SplicingModelPath;
-        if (!File.Exists(modelPath))
-            modelPath = Path.Combine(AppContext.BaseDirectory, options.SplicingModelPath);
+        if (!Path.IsPathRooted(modelPath))
+        {
+            if (!File.Exists(modelPath))
+                modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
+            if (!File.Exists(modelPath))
+                modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                    "..", "..", "..", "..", "..", "..", "ImageForensics", "src",
+                    "Models", "onnx", modelPath));
+        }
 
         var (spScore, spMap) = DlSplicingDetector.AnalyzeSplicing(
             imagePath,
@@ -41,10 +48,19 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             SplicingMapPath = spMap
         };
 
+        string modelsDir = options.NoiseprintModelsDir;
+        if (!Path.IsPathRooted(modelsDir))
+        {
+            modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                "..", "..", "..", "..", "..", "..", modelsDir));
+        }
+        if (!Directory.Exists(modelsDir))
+            throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
+
         var (ipScore, ipMap) = NoiseprintSdkWrapper.Run(
             imagePath,
             options.NoiseprintMapDir,
-            options.NoiseprintModelsDir,
+            modelsDir,
             options.NoiseprintInputSize);
 
         result = result with

@@ -24,6 +24,12 @@ public class CliBenchmarkTests
         string reportDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(reportDir);
 
+        // Ensure the splicing model is reachable by the CLI working directory
+        string modelSrc = Path.Combine(RepoRoot, "ImageForensics", "src", "Models", "onnx", "mantranet_256x256.onnx");
+        string modelDst = Path.Combine(RepoRoot, "mantranet_256x256.onnx");
+        if (!File.Exists(modelDst))
+            File.Copy(modelSrc, modelDst);
+
         var psi = new ProcessStartInfo("dotnet", $"run --project {cliProj} -- --benchmark-all --input-dir {inputDir} --report-dir {reportDir} --workdir {reportDir}");
         psi.Environment["LD_LIBRARY_PATH"] = Path.Combine(RepoRoot, "so");
         psi.WorkingDirectory = RepoRoot;
