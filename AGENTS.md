@@ -25,3 +25,6 @@ Per verificare il corretto funzionamento di OpenCvSharp è presente il progetto 
 ```
 dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
+
+Ogni esecuzione dei test deve inoltre aggiornare la sezione **Test e qualità**
+del file `README.md` con i risultati più recenti.
