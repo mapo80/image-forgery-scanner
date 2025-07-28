@@ -58,8 +58,8 @@ The application prints several metrics and saves diagnostic images in `DIR`
 | `CopyMoveRansacReproj`   | RANSAC reprojection threshold in pixels                   | `3.0`   |
 | `CopyMoveRansacProb`     | Desired RANSAC success probability                        | `0.99`  |
 | `CopyMoveMaskDir`        | Directory where the copy‑move mask is written             | `results` |
-| `NoiseprintModelPath`    | Path of the Noiseprint ONNX model                  | `src/Models/onnx/noiseprint_spp.onnx` |
-| `NoiseprintInputSize`    | Resize size fed into the Noiseprint model          | `320` |
+| `NoiseprintModelsDir`    | Directory containing Noiseprint ONNX models | `ImageForensics/src/Models/onnx/noiseprint` |
+| `NoiseprintInputSize`    | Resize size fed into the Noiseprint model | `320` |
 | `NoiseprintMapDir`       | Directory where the Noiseprint heat-map is saved   | `results` |
 
 ### Output fields
@@ -114,10 +114,10 @@ dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark --benc
 
 ## Noiseprint Inpainting Detection
 
-This feature relies on `noiseprint_spp.onnx` from the
+This feature relies on the Noiseprint ONNX models from the
 [mapo80/noiseprint-pytorch](https://github.com/mapo80/noiseprint-pytorch) project.
-Download the model with `tools/download_models.sh` and place it under
-`src/Models/onnx`.
+Download them with `tools/download_models.sh` and place them under
+`ImageForensics/src/Models/onnx/noiseprint`.
 Add test images (e.g. `clean.png` and `inpainting.png`) to
 `tests/ImageForensics.Tests/testdata`.
 
@@ -126,6 +126,49 @@ Run a benchmark with:
 ```bash
 dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-inpainting --benchdir <folder>
 ```
+
+## Noiseprint benchmark
+
+Average processing time for the dataset images (release build):
+
+| Category   | Avg ms |
+|------------|-------:|
+| Authentic  | 413 |
+| Tampered   | 396 |
+
+The following tables report the processing time for each image when running only the Noiseprint check (milliseconds on a typical container). The last row shows the category average.
+
+### Authentic
+
+| Image | ms |
+|-------|---:|
+| Au_ani_00001.jpg | 415 |
+| Au_ani_00002.jpg | 375 |
+| Au_ani_00003.jpg | 373 |
+| Au_ani_00004.jpg | 420 |
+| Au_ani_00005.jpg | 368 |
+| Au_ani_00006.jpg | 482 |
+| Au_ani_00007.jpg | 527 |
+| Au_ani_00008.jpg | 388 |
+| Au_ani_00009.jpg | 379 |
+| Au_ani_00010.jpg | 400 |
+| **Average** | **413** |
+
+### Tampered
+
+| Image | ms |
+|-------|---:|
+| Tp_D_CND_S_N_txt00028_txt00006_10848.jpg | 392 |
+| Tp_D_CNN_M_B_nat00056_nat00099_11105.jpg | 393 |
+| Tp_D_CNN_M_B_nat10139_nat00059_11949.jpg | 421 |
+| Tp_D_CNN_M_B_nat10139_nat00097_11948.jpg | 411 |
+| Tp_D_CNN_M_N_ani00052_ani00054_11130.jpg | 369 |
+| Tp_D_CNN_M_N_ani00057_ani00055_11149.jpg | 394 |
+| Tp_D_CNN_M_N_art00052_arc00030_11853.jpg | 383 |
+| Tp_D_CNN_M_N_cha00026_cha00028_11784.jpg | 407 |
+| Tp_D_CNN_M_N_ind00091_ind00091_10647.jpg | 403 |
+| Tp_D_CNN_M_N_ind00091_ind00091_10648.jpg | 383 |
+| **Average** | **396** |
 
 ## ELA benchmark
 
