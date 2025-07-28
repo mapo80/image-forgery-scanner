@@ -1,98 +1,251 @@
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
+using ImageForensics.Core.Algorithms;
 using System.Diagnostics;
-using System.Collections.Generic;
+using System.Text.Json;
+
+void PrintUsage()
+{
+    Console.WriteLine("Usage: ImageForensics.Cli <image> [--workdir DIR]");
+    Console.WriteLine("       ImageForensics.Cli --benchmark-ela|--benchmark-copy-move|--benchmark-splicing|--benchmark-inpainting|--benchmark-exif|--benchmark-all --input-dir DIR [--report-dir DIR] [--workdir DIR]");
+}
 
 if (args.Length == 0)
 {
-    Console.WriteLine("Usage: ImageForensics.Cli <image> [--workdir DIR] [--benchmark --benchdir DIR] [--benchmark-inpainting]");
+    PrintUsage();
     return;
 }
 
 string? image = null;
 string workDir = "results";
-bool benchmark = false;
-bool benchmarkIp = false;
-string benchDir = string.Empty;
+string inputDir = string.Empty;
+string reportDir = "benchmark_report";
+
+bool bench = false;
+bool benchEla = false;
+bool benchCm = false;
+bool benchSp = false;
+bool benchIp = false;
+bool benchExif = false;
+bool benchAll = false;
 
 for (int i = 0; i < args.Length; i++)
 {
-    if (args[i] == "--workdir" && i + 1 < args.Length)
+    switch (args[i])
     {
-        workDir = args[i + 1];
-        i++;
-    }
-    else if (args[i] == "--benchmark")
-    {
-        benchmark = true;
-    }
-    else if (args[i] == "--benchmark-inpainting")
-    {
-        benchmarkIp = true;
-    }
-    else if (args[i] == "--benchdir" && i + 1 < args.Length)
-    {
-        benchDir = args[i + 1];
-        i++;
-    }
-    else if (image == null)
-    {
-        image = args[i];
+        case "--workdir" when i + 1 < args.Length:
+            workDir = args[++i];
+            break;
+        case "--input-dir" when i + 1 < args.Length:
+            inputDir = args[++i];
+            break;
+        case "--report-dir" when i + 1 < args.Length:
+            reportDir = args[++i];
+            break;
+        case "--benchmark":
+            bench = true;
+            break;
+        case "--benchmark-ela":
+            benchEla = true;
+            break;
+        case "--benchmark-copy-move":
+            benchCm = true;
+            break;
+        case "--benchmark-splicing":
+            benchSp = true;
+            break;
+        case "--benchmark-inpainting":
+            benchIp = true;
+            break;
+        case "--benchmark-exif":
+            benchExif = true;
+            break;
+        case "--benchmark-all":
+            benchAll = true;
+            break;
+        default:
+            if (image == null)
+                image = args[i];
+            break;
     }
 }
 
+if (benchAll)
+{
+    benchEla = benchCm = benchSp = benchIp = benchExif = true;
+    bench = true;
+}
+
+bool runBenchmark = bench || benchEla || benchCm || benchSp || benchIp || benchExif;
+if (runBenchmark)
+{
+    if (string.IsNullOrEmpty(inputDir))
+    {
+        Console.WriteLine("--input-dir is required for benchmarking.");
+        return;
+    }
+    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll);
+    return;
+}
+
+if (image == null)
+{
+    PrintUsage();
+    return;
+}
+
 var analyzer = new ForensicsAnalyzer();
-var options = new ForensicsOptions
+var opts = new ForensicsOptions
 {
     WorkDir = workDir,
     CopyMoveMaskDir = workDir,
     SplicingMapDir = workDir,
-    NoiseprintMapDir = workDir
+    NoiseprintMapDir = workDir,
+    MetadataMapDir = workDir
 };
+var result = await analyzer.AnalyzeAsync(image, opts);
+Console.WriteLine($"ELA score       : {result.ElaScore:F3}");
+Console.WriteLine($"CopyMove score  : {result.CopyMoveScore:F3}");
+Console.WriteLine($"Splicing score  : {result.SplicingScore:F3}");
+Console.WriteLine($"Inpainting score: {result.InpaintingScore:F3}");
+Console.WriteLine($"Exif score      : {result.ExifScore:F3}");
+Console.WriteLine($"Total score     : {result.TotalScore:F3}");
+Console.WriteLine($"Verdict         : {result.Verdict}");
 
-if (benchmarkIp)
+return;
+
+static Task RunBenchmarkAsync(
+    string inputDir,
+    string reportDir,
+    string workDir,
+    bool benchEla,
+    bool benchCm,
+    bool benchSp,
+    bool benchIp,
+    bool benchExif,
+    bool saveReport)
 {
-    var files = Directory.GetFiles(benchDir, "*.png");
-    var times = new List<long>();
+    var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
+        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
+
+    Directory.CreateDirectory(workDir);
+    Directory.CreateDirectory(reportDir);
+
+    var opts = new ForensicsOptions
+    {
+        WorkDir = workDir,
+        CopyMoveMaskDir = workDir,
+        SplicingMapDir = workDir,
+        NoiseprintMapDir = workDir,
+        MetadataMapDir = workDir
+    };
+
+    var elaTimes = new List<long>();
+    var cmTimes = new List<long>();
+    var spTimes = new List<long>();
+    var ipTimes = new List<long>();
+    var exifTimes = new List<long>();
+
+    var results = new List<Dictionary<string, object?>>();
+
     foreach (var file in files)
     {
-        var sw = Stopwatch.StartNew();
-        var res = await analyzer.AnalyzeAsync(file, options);
-        sw.Stop();
-        Console.WriteLine($"{file}: score={res.InpaintingScore:F3}, time={sw.ElapsedMilliseconds} ms");
-        times.Add(sw.ElapsedMilliseconds);
+        var record = new Dictionary<string, object?>
+        {
+            ["file"] = file
+        };
+
+        if (benchEla)
+        {
+            var sw = Stopwatch.StartNew();
+            var (score, _) = ElaAnalyzer.Analyze(file, workDir, opts.ElaQuality);
+            sw.Stop();
+            elaTimes.Add(sw.ElapsedMilliseconds);
+            record["elaScore"] = score;
+            record["elaMs"] = sw.ElapsedMilliseconds;
+        }
+        if (benchCm)
+        {
+            var sw = Stopwatch.StartNew();
+            var (score, _) = CopyMoveDetector.Analyze(file, workDir,
+                opts.CopyMoveFeatureCount, opts.CopyMoveMatchDistance,
+                opts.CopyMoveRansacReproj, opts.CopyMoveRansacProb);
+            sw.Stop();
+            cmTimes.Add(sw.ElapsedMilliseconds);
+            record["copyMoveScore"] = score;
+            record["copyMoveMs"] = sw.ElapsedMilliseconds;
+        }
+        if (benchSp)
+        {
+            var sw = Stopwatch.StartNew();
+            var (score, _) = DlSplicingDetector.AnalyzeSplicing(file, workDir,
+                opts.SplicingModelPath, opts.SplicingInputWidth, opts.SplicingInputHeight);
+            sw.Stop();
+            spTimes.Add(sw.ElapsedMilliseconds);
+            record["splicingScore"] = score;
+            record["splicingMs"] = sw.ElapsedMilliseconds;
+        }
+        if (benchIp)
+        {
+            var sw = Stopwatch.StartNew();
+            var (score, _) = NoiseprintSdkWrapper.Run(file, workDir,
+                opts.NoiseprintModelsDir, opts.NoiseprintInputSize);
+            sw.Stop();
+            ipTimes.Add(sw.ElapsedMilliseconds);
+            record["inpaintingScore"] = score;
+            record["inpaintingMs"] = sw.ElapsedMilliseconds;
+        }
+        if (benchExif)
+        {
+            var sw = Stopwatch.StartNew();
+            var (score, _) = ExifChecker.Analyze(file, workDir, opts.ExpectedCameraModels);
+            sw.Stop();
+            exifTimes.Add(sw.ElapsedMilliseconds);
+            record["exifScore"] = score;
+            record["exifMs"] = sw.ElapsedMilliseconds;
+        }
+
+        Console.WriteLine($"{file}: " +
+            (benchEla ? $"ELA {record["elaMs"]} ms {record["elaScore"]:0.000} " : "") +
+            (benchCm ? $"CM {record["copyMoveMs"]} ms {record["copyMoveScore"]:0.000} " : "") +
+            (benchSp ? $"SP {record["splicingMs"]} ms {record["splicingScore"]:0.000} " : "") +
+            (benchIp ? $"IP {record["inpaintingMs"]} ms {record["inpaintingScore"]:0.000} " : "") +
+            (benchExif ? $"EXIF {record["exifMs"]} ms {record["exifScore"]:0.000}" : ""));
+
+        results.Add(record);
     }
 
-    Console.WriteLine($"Average inpainting time: {times.Average():F1} ms");
-}
-else if (benchmark)
-{
-    var files = Directory.GetFiles(benchDir, "*.jpg");
-    var times = new List<long>();
-    foreach (var file in files)
+    void PrintStats(string name, List<long> list)
     {
-        var sw = Stopwatch.StartNew();
-        var res = await analyzer.AnalyzeAsync(file, options);
-        sw.Stop();
-        Console.WriteLine($"{file}: score={res.SplicingScore:F3}, time={sw.ElapsedMilliseconds} ms");
-        times.Add(sw.ElapsedMilliseconds);
+        if (list.Count == 0) return;
+        double avg = list.Average();
+        double std = Math.Sqrt(list.Sum(t => (t - avg) * (t - avg)) / list.Count);
+        Console.WriteLine($"{name,-10} – avg {avg:F0} ms ± {std:F0} ms on {list.Count} images");
     }
 
-    Console.WriteLine($"Average splicing time: {times.Average():F1} ms");
-}
-else if (image != null)
-{
-    var res = await analyzer.AnalyzeAsync(image, options);
+    Console.WriteLine("Benchmark summary:");
+    PrintStats("ELA", elaTimes);
+    PrintStats("Copy-Move", cmTimes);
+    PrintStats("Splicing", spTimes);
+    PrintStats("Inpainting", ipTimes);
+    PrintStats("EXIF", exifTimes);
 
-    Console.WriteLine($"ELA score : {res.ElaScore:F3}");
-    Console.WriteLine($"Verdict   : {res.Verdict}");
-    Console.WriteLine($"Heat-map  : {res.ElaMapPath}");
-    Console.WriteLine($"CopyMove score : {res.CopyMoveScore:F3}");
-    Console.WriteLine($"CopyMove mask  : {res.CopyMoveMaskPath}");
-    Console.WriteLine($"Splicing score : {res.SplicingScore:F3}");
-    Console.WriteLine($"Splicing map   : {res.SplicingMapPath}");
-    Console.WriteLine($"Inpainting score : {res.InpaintingScore:F3}");
-    Console.WriteLine($"Inpainting map   : {res.InpaintingMapPath}");
-    Console.WriteLine($"Total score   : {res.TotalScore:F3}");
-    Console.WriteLine($"Final verdict : {res.Verdict}");
+    if (saveReport)
+    {
+        var stats = new Dictionary<string, object?>
+        {
+            ["ELA"] = elaTimes.Count == 0 ? null : new { Average = elaTimes.Average(), StdDev = Math.Sqrt(elaTimes.Sum(t => (t - elaTimes.Average()) * (t - elaTimes.Average())) / elaTimes.Count), Count = elaTimes.Count },
+            ["CopyMove"] = cmTimes.Count == 0 ? null : new { Average = cmTimes.Average(), StdDev = Math.Sqrt(cmTimes.Sum(t => (t - cmTimes.Average()) * (t - cmTimes.Average())) / cmTimes.Count), Count = cmTimes.Count },
+            ["Splicing"] = spTimes.Count == 0 ? null : new { Average = spTimes.Average(), StdDev = Math.Sqrt(spTimes.Sum(t => (t - spTimes.Average()) * (t - spTimes.Average())) / spTimes.Count), Count = spTimes.Count },
+            ["Inpainting"] = ipTimes.Count == 0 ? null : new { Average = ipTimes.Average(), StdDev = Math.Sqrt(ipTimes.Sum(t => (t - ipTimes.Average()) * (t - ipTimes.Average())) / ipTimes.Count), Count = ipTimes.Count },
+            ["EXIF"] = exifTimes.Count == 0 ? null : new { Average = exifTimes.Average(), StdDev = Math.Sqrt(exifTimes.Sum(t => (t - exifTimes.Average()) * (t - exifTimes.Average())) / exifTimes.Count), Count = exifTimes.Count }
+        };
+        var obj = new { Results = results, Stats = stats };
+        string jsonPath = Path.Combine(reportDir, "benchmark.json");
+        File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
+    }
+    return Task.CompletedTask;
 }
