@@ -24,6 +24,24 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
         string verdict = elaScore < 0.018 ? "Clean" : elaScore < 0.022 ? "Suspicious" : "Tampered";
         var result = new ForensicsResult(elaScore, elaMapPath, verdict, cmScore, cmMaskPath);
+
+        string modelPath = options.SplicingModelPath;
+        if (!File.Exists(modelPath))
+            modelPath = Path.Combine(AppContext.BaseDirectory, options.SplicingModelPath);
+
+        var (spScore, spMap) = DlSplicingDetector.AnalyzeSplicing(
+            imagePath,
+            options.SplicingMapDir,
+            modelPath,
+            options.SplicingInputWidth,
+            options.SplicingInputHeight);
+
+        result = result with
+        {
+            SplicingScore   = spScore,
+            SplicingMapPath = spMap
+        };
+
         return Task.FromResult(result);
     }
 }

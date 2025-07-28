@@ -31,6 +31,8 @@ dotnet run
 The sample images used for testing are from the [CASIA 2.0 Image Tampering Detection Dataset](https://www.kaggle.com/datasets/divg07/casia-20-image-tampering-detection-dataset?resource=download).
 They are organized in `dataset/authentic` and `dataset/tampered`.
 
+Download the required ONNX models by running `tools/download_models.sh`.
+
 ## Command line usage
 
 Run the CLI by specifying an image path and an optional working directory where
@@ -68,6 +70,42 @@ The application prints several metrics and saves diagnostic images in `DIR`
 | `Verdict`          | Quick qualitative judgement based solely on `ElaScore`.                              |
 | `CopyMoveScore`    | Ratio of matched keypoints consistent with a geometric transform.                   |
 | `CopyMoveMaskPath` | Path of the mask image showing detected copy‑move regions.                           |
+
+## Splicing Detection
+
+This module relies on the neural network `ManTraNet_256x256.onnx` (ManTraNet, CVPR 2019) to detect
+local splicing artefacts. The model is bundled under `ImageForensics/src/Models/onnx` and is
+originally exported from [mapo80/ManTraNet](https://github.com/mapo80/ManTraNet).
+
+To obtain it run the helper script which downloads the pretrained Keras weights and converts them to ONNX:
+
+```bash
+python tools/export_mantranet_onnx.py
+```
+
+This recreates `src/Models/onnx/mantranet_256x256.onnx` if needed.
+
+### `AnalyzeSplicing` inputs
+
+- `string imagePath` – path of the input image.
+- `string mapDir` – directory where the heat‑map will be saved.
+- `string modelPath` – location of the ONNX model.
+- `int inputW`, `int inputH` – resize width and height.
+
+### Outputs
+
+- `double Score` – normalised tampering score in the range [0–1].
+- `string MapPath` – path of the generated PNG heat‑map.
+
+Copy the CASIA dataset under
+`tests/ImageForensics.Tests/testdata/casia2/authentic` and
+`tests/ImageForensics.Tests/testdata/casia2/tampered`.
+
+Run a benchmark with:
+
+```bash
+dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark --benchdir <folder>
+```
 
 ## ELA benchmark
 

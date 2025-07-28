@@ -5,4 +5,8 @@ public record ForensicsResult(
     string ElaMapPath,
     string Verdict,
     double CopyMoveScore,
-    string CopyMoveMaskPath);
+    string CopyMoveMaskPath)
+{
+    public double SplicingScore   { get; init; }
+    public string SplicingMapPath { get; init; } = string.Empty;
+}

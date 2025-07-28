@@ -14,4 +14,10 @@
     <PackageReference Include="System.Text.Json" Version="9.0.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\Models\onnx\mantranet_256x256.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -387,3 +387,6 @@ FodyWeavers.xsd
 .idea/
 *.sln.iml
 Links.SpotBooking.Api/public
+
+# ONNX models
+
