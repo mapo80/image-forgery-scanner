@@ -63,6 +63,32 @@ ImageForensics è una raccolta di strumenti per l'analisi di immagini e il rilev
 - `Models/onnx` è la cartella dove scaricare ManTraNet e i modelli Noiseprint.
 - `dataset` raccoglie alcune immagini di esempio (CASIA2) usate nei benchmark.
 
+## Struttura del dataset
+Il dataset integrato nel repository è suddiviso in cartelle che riflettono le diverse tipologie di immagini usate nei test:
+
+```
+dataset/
+├─ authentic/           # Immagini originali "real" pulite (nessuna manipolazione)
+├─ clean/               # Varianti di immagini pulite usate per controlli "clean"
+├─ deepfake/
+│   ├─ real/            # Frame "veri" estratti da video originali
+│   └─ fake/            # Frame "deepfake" estratti da video manipolati
+├─ duplicated/          # Immagini con copy–move forgery (regioni duplicate)
+├─ exif/
+│   ├─ original/        # JPEG con EXIF integro (DateTimeOriginal, Make/Model, Software)
+│   └─ exif_edited/     # Stesse immagini EXIF‑edited (tag rimossi o modificati)
+└─ tampered/            # Immagini generiche "tampered" non classificate altrove
+```
+
+* `authentic/` raccoglie un sottoinsieme di foto certificate, utili per verificare i falsi positivi dei vari moduli.
+* `clean/` contiene immagini non manipolate usate come baseline sia per ELA sia per Noiseprint.
+* `deepfake/real` e `deepfake/fake` ospitano rispettivamente i frame genuini e quelli manipolati di video deepfake (Face2Face, NeuralTextures ecc.).
+* `duplicated/` include copie con aree duplicate (copy‑move) e le relative maschere di ground truth.
+* `exif/original` raggruppa JPEG con metadati integri, mentre `exif/exif_edited` offre le stesse immagini con tag rimossi o alterati.
+* `tampered/` raccoglie immagini manomesse di vario tipo (splicing, inpainting o altre tecniche).
+
+Questa organizzazione permette di esercitare separatamente i moduli ELA, Copy‑Move, Splicing, Deepfake/Inpainting e Metadata, oltre a comporre test di integrazione combinati.
+
 ## Modalità d'uso CLI
 Per analizzare una singola immagine:
 ```bash
@@ -178,7 +204,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
-Ultima esecuzione test: **2025-07-28** – tutti i test completati con successo (42 totali).
+Ultima esecuzione test: **2025-07-28** – 3 test completati con successo (2 OpenCvSharp, 1 Ela).
 
 ### Riepilogo test
 
