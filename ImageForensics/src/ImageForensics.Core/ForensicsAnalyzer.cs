@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using ImageForensics.Core.Algorithms;
 using ImageForensics.Core.Models;
 
@@ -10,82 +13,122 @@ public interface IForensicsAnalyzer
 
 public class ForensicsAnalyzer : IForensicsAnalyzer
 {
-    public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
+    public async Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
     {
-        var (elaScore, elaMapPath) = ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality);
-
-        var (cmScore, cmMaskPath) = CopyMoveDetector.Analyze(
-            imagePath,
-            options.CopyMoveMaskDir,
-            options.CopyMoveFeatureCount,
-            options.CopyMoveMatchDistance,
-            options.CopyMoveRansacReproj,
-            options.CopyMoveRansacProb);
-
-        var result = new ForensicsResult(elaScore, elaMapPath, string.Empty, cmScore, cmMaskPath);
-
-        string modelPath = options.SplicingModelPath;
-        if (!Path.IsPathRooted(modelPath))
+        var semaphore = new SemaphoreSlim(Math.Max(1, options.MaxParallelChecks));
+        Task<T> RunAsync<T>(Func<T> func) => Task.Run(() =>
         {
-            if (!File.Exists(modelPath))
-                modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
-            if (!File.Exists(modelPath))
-                modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                    "..", "..", "..", "..", "..", "..", "ImageForensics", "src",
-                    "Models", "onnx", modelPath));
+            semaphore.Wait();
+            try { return func(); }
+            finally { semaphore.Release(); }
+        });
+
+        Task<(double, string)> elaTask = Task.FromResult((0d, string.Empty));
+        if (options.EnabledChecks.HasFlag(ForensicsCheck.Ela))
+        {
+            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality));
         }
 
-        var (spScore, spMap) = DlSplicingDetector.AnalyzeSplicing(
-            imagePath,
-            options.SplicingMapDir,
-            modelPath,
-            options.SplicingInputWidth,
-            options.SplicingInputHeight);
+        Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
+        if (options.EnabledChecks.HasFlag(ForensicsCheck.CopyMove))
+        {
+            cmTask = RunAsync(() => CopyMoveDetector.Analyze(
+                imagePath,
+                options.CopyMoveMaskDir,
+                options.CopyMoveFeatureCount,
+                options.CopyMoveMatchDistance,
+                options.CopyMoveRansacReproj,
+                options.CopyMoveRansacProb));
+        }
 
-        result = result with
+        Task<(double, string)> spTask = Task.FromResult((0d, string.Empty));
+        if (options.EnabledChecks.HasFlag(ForensicsCheck.Splicing))
+        {
+            spTask = RunAsync(() =>
+            {
+                string modelPath = options.SplicingModelPath;
+                if (!Path.IsPathRooted(modelPath))
+                {
+                    if (!File.Exists(modelPath))
+                        modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
+                    if (!File.Exists(modelPath))
+                        modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                            "..", "..", "..", "..", "..", "..", "ImageForensics", "src",
+                            "Models", "onnx", modelPath));
+                }
+
+                return DlSplicingDetector.AnalyzeSplicing(
+                    imagePath,
+                    options.SplicingMapDir,
+                    modelPath,
+                    options.SplicingInputWidth,
+                    options.SplicingInputHeight);
+            });
+        }
+
+        Task<(double, string)> ipTask = Task.FromResult((0d, string.Empty));
+        if (options.EnabledChecks.HasFlag(ForensicsCheck.Inpainting))
+        {
+            ipTask = RunAsync(() =>
+            {
+                string modelsDir = options.NoiseprintModelsDir;
+                if (!Path.IsPathRooted(modelsDir))
+                {
+                    modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                        "..", "..", "..", "..", "..", "..", modelsDir));
+                }
+                if (!Directory.Exists(modelsDir))
+                    throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
+
+                return NoiseprintSdkWrapper.Run(
+                    imagePath,
+                    options.NoiseprintMapDir,
+                    modelsDir,
+                    options.NoiseprintInputSize);
+            });
+        }
+
+        Task<(double, IReadOnlyDictionary<string, string?>)> exifTask =
+            Task.FromResult<(double, IReadOnlyDictionary<string, string?>)>(
+                (0d, new Dictionary<string, string?>()));
+        if (options.EnabledChecks.HasFlag(ForensicsCheck.Exif))
+        {
+            exifTask = RunAsync(() => ExifChecker.Analyze(
+                imagePath,
+                options.MetadataMapDir,
+                options.ExpectedCameraModels));
+        }
+
+        await Task.WhenAll(elaTask, cmTask, spTask, ipTask, exifTask);
+
+        var (elaScore, elaMapPath) = await elaTask;
+        var (cmScore, cmMaskPath) = await cmTask;
+        var (spScore, spMap) = await spTask;
+        var (ipScore, ipMap) = await ipTask;
+        var (exifScore, exifAnomalies) = await exifTask;
+
+        var result = new ForensicsResult(elaScore, elaMapPath, string.Empty, cmScore, cmMaskPath)
         {
             SplicingScore   = spScore,
-            SplicingMapPath = spMap
-        };
-
-        string modelsDir = options.NoiseprintModelsDir;
-        if (!Path.IsPathRooted(modelsDir))
-        {
-            modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                "..", "..", "..", "..", "..", "..", modelsDir));
-        }
-        if (!Directory.Exists(modelsDir))
-            throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
-
-        var (ipScore, ipMap) = NoiseprintSdkWrapper.Run(
-            imagePath,
-            options.NoiseprintMapDir,
-            modelsDir,
-            options.NoiseprintInputSize);
-
-        result = result with
-        {
+            SplicingMapPath = spMap,
             InpaintingScore   = ipScore,
-            InpaintingMapPath = ipMap
-        };
-
-        var (exifScore, exifAnomalies) = ExifChecker.Analyze(
-            imagePath,
-            options.MetadataMapDir,
-            options.ExpectedCameraModels);
-        result = result with
-        {
+            InpaintingMapPath = ipMap,
             ExifScore = exifScore,
             ExifAnomalies = exifAnomalies
         };
 
-        var (total, verdict) = DecisionEngine.Decide(result, options);
-        result = result with
+        var effectiveOptions = options with
         {
-            Verdict = verdict,
-            TotalScore = total
+            ElaWeight = options.EnabledChecks.HasFlag(ForensicsCheck.Ela) ? options.ElaWeight : 0,
+            CopyMoveWeight = options.EnabledChecks.HasFlag(ForensicsCheck.CopyMove) ? options.CopyMoveWeight : 0,
+            SplicingWeight = options.EnabledChecks.HasFlag(ForensicsCheck.Splicing) ? options.SplicingWeight : 0,
+            InpaintingWeight = options.EnabledChecks.HasFlag(ForensicsCheck.Inpainting) ? options.InpaintingWeight : 0,
+            ExifWeight = options.EnabledChecks.HasFlag(ForensicsCheck.Exif) ? options.ExifWeight : 0
         };
 
-        return Task.FromResult(result);
+        var (total, verdict) = DecisionEngine.Decide(result, effectiveOptions);
+        result = result with { Verdict = verdict, TotalScore = total };
+
+        return result;
     }
 }

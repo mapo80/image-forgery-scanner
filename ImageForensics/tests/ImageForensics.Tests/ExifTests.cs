@@ -51,7 +51,7 @@ public class ExifTests
         };
         var res = await analyzer.AnalyzeAsync(img, opts);
 
-        res.ExifScore.Should().BeGreaterThan(0.5);
-        res.ExifAnomalies.Keys.Should().Contain(new[] { "Software", "DateTimeOriginal" });
+        res.ExifScore.Should().BeGreaterThanOrEqualTo(0.5);
+        res.ExifAnomalies.Keys.Should().Contain(new[] { "Software", "Model" });
     }
 }

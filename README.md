@@ -8,30 +8,17 @@ ImageForensics è una raccolta di strumenti per l'analisi di immagini e il rilev
  |Preprocess |
  +-----------+
        |
- +-----------+
- |    ELA    |
- +-----------+
-       |
- +-----------+
- | Copy-Move |
- +-----------+
-       |
- +-----------+
- | Splicing  |
- +-----------+
-       |
- +-----------+
- |Inpainting |
- +-----------+
-       |
- +-----------+
- |   EXIF    |
- +-----------+
-       |
- +-----------+
- | Decision  |
- |  Engine   |
- +-----------+
+ +-----------+  +-----------+  +-----------+  +-----------+  +-----------+
+ |    ELA    |  | Copy-Move |  | Splicing  |  |Inpainting |  |   EXIF    |
+ +-----------+  +-----------+  +-----------+  +-----------+  +-----------+
+       \\            |             |             |            //
+        \\           |             |             |           //
+         +-----------------------------------------------+
+                         |
+                  +-----------+
+                  | Decision  |
+                  |  Engine   |
+                  +-----------+
 ```
 
 ## Requisiti e installazione
@@ -92,8 +79,10 @@ Questa organizzazione permette di esercitare separatamente i moduli ELA, Copy‑
 ## Modalità d'uso CLI
 Per analizzare una singola immagine:
 ```bash
-dotnet run --project ImageForensics/src/ImageForensics.Cli -- <image> [--workdir DIR]
+dotnet run --project ImageForensics/src/ImageForensics.Cli -- <image> [--workdir DIR] [--checks LIST] [--parallel N]
 ```
+`LIST` è un elenco separato da virgole tra `ela`, `copymove`, `splicing`, `inpainting`, `exif`.
+`N` limita il numero di controlli eseguiti in parallelo.
 Tutti i file generati (mappe, maschere, report) vengono salvati in `DIR` (default `results`).
 
 ### Benchmark
@@ -205,7 +194,7 @@ dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-07-28** – 46 test completati con successo (incluso il dataset duplicato).
+Ultima esecuzione test: **2025-07-31** – 48 test completati con successo.
 
 ### Riepilogo test
 
