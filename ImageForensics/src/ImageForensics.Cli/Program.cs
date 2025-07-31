@@ -3,10 +3,11 @@ using ImageForensics.Core.Models;
 using ImageForensics.Core.Algorithms;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Linq;
 
 void PrintUsage()
 {
-    Console.WriteLine("Usage: ImageForensics.Cli <image> [--workdir DIR]");
+    Console.WriteLine("Usage: ImageForensics.Cli <image> [--workdir DIR] [--checks LIST] [--parallel N]");
     Console.WriteLine("       ImageForensics.Cli --benchmark-ela|--benchmark-copy-move|--benchmark-splicing|--benchmark-inpainting|--benchmark-exif|--benchmark-all --input-dir DIR [--report-dir DIR] [--workdir DIR]");
 }
 
@@ -20,6 +21,8 @@ string? image = null;
 string workDir = "results";
 string inputDir = string.Empty;
 string reportDir = "benchmark_report";
+ForensicsCheck checks = ForensicsCheck.All;
+int parallel = 1;
 
 bool bench = false;
 bool benchEla = false;
@@ -41,6 +44,15 @@ for (int i = 0; i < args.Length; i++)
             break;
         case "--report-dir" when i + 1 < args.Length:
             reportDir = args[++i];
+            break;
+        case "--checks" when i + 1 < args.Length:
+            checks = args[++i]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => Enum.Parse<ForensicsCheck>(s, true))
+                .Aggregate(ForensicsCheck.None, (a, c) => a | c);
+            break;
+        case "--parallel" when i + 1 < args.Length:
+            parallel = int.Parse(args[++i]);
             break;
         case "--benchmark":
             bench = true;
@@ -101,7 +113,9 @@ var opts = new ForensicsOptions
     CopyMoveMaskDir = workDir,
     SplicingMapDir = workDir,
     NoiseprintMapDir = workDir,
-    MetadataMapDir = workDir
+    MetadataMapDir = workDir,
+    EnabledChecks = checks,
+    MaxParallelChecks = parallel
 };
 var result = await analyzer.AnalyzeAsync(image, opts);
 Console.WriteLine($"ELA score       : {result.ElaScore:F3}");

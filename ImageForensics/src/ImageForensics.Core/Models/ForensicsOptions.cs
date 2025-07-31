@@ -38,4 +38,8 @@ public record ForensicsOptions
     // Thresholds separating the three final verdict classes.
     public double CleanThreshold    { get; init; } = 0.2;
     public double TamperedThreshold { get; init; } = 0.8;
+
+    // Enabled checks and parallelization settings.
+    public ForensicsCheck EnabledChecks { get; init; } = ForensicsCheck.All;
+    public int MaxParallelChecks      { get; init; } = 1;
 }
