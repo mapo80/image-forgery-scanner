@@ -102,6 +102,24 @@ dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-ela --
 dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-all --input-dir dataset/casia2 --report-dir bench
 ```
 
+## API REST
+Il progetto `ImageForensic.Api` espone un endpoint HTTP per analizzare un'immagine tramite le stesse opzioni della libreria.
+
+### Avvio
+```bash
+dotnet run --project ImageForensic.Api/ImageForensic.Api.csproj
+```
+
+### Endpoint `/analyze`
+Richiede una richiesta `POST` con corpo JSON:
+```json
+{
+  "imagePath": "percorso/dell/immagine.jpg",
+  "options": { /* campi di ForensicsOptions */ }
+}
+```
+La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate e verdetto. La documentazione Swagger è disponibile all'indirizzo `/swagger`.
+
 ### Parametri principali
 `ForensicsOptions` espone diversi parametri regolabili:
 
@@ -191,10 +209,14 @@ Il progetto `TestOpenCvSharp` verifica il corretto caricamento della libreria na
 ```bash
 dotnet test TestOpenCvSharp/TestOpenCvSharp.csproj -v n
 ```
+Il progetto `ImageForensic.Api.Tests` contiene i test per l'API REST:
+```bash
+dotnet test ImageForensic.Api.Tests/ImageForensic.Api.Tests.csproj -v n
+```
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-07-31** – 48 test completati con successo.
+Ultima esecuzione test: **2025-07-31** – 2 test completati con successo (`ImageForensic.Api.Tests`).
 
 ### Riepilogo test
 
