@@ -1,0 +1,6 @@
+@ImageForensic.Api_HostAddress = http://localhost:5236
+
+GET {{ImageForensic.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
