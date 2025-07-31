@@ -10,17 +10,14 @@ namespace ImageForensics.Core;
 
 public interface IForensicsAnalyzer
 {
-    Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir);
+    Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options);
 }
 
 public class ForensicsAnalyzer : IForensicsAnalyzer
 {
-    private const string SplicingModelPath = "mantranet_256x256.onnx";
-    private const string NoiseprintModelsDir = "ImageForensics/src/Models/onnx/noiseprint";
-
-    public async Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir)
+    public async Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
     {
-        Directory.CreateDirectory(workDir);
+        Directory.CreateDirectory(options.WorkDir);
 
         var semaphore = new SemaphoreSlim(Math.Max(1, options.MaxParallelChecks));
         Task<T> RunAsync<T>(Func<T> func) => Task.Run(() =>
@@ -33,15 +30,16 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Task<(double, string)> elaTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Ela))
         {
-            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, workDir, options.ElaQuality));
+            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality));
         }
 
         Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.CopyMove))
         {
+            Directory.CreateDirectory(options.CopyMoveMaskDir);
             cmTask = RunAsync(() => CopyMoveDetector.Analyze(
                 imagePath,
-                workDir,
+                options.CopyMoveMaskDir,
                 options.CopyMoveFeatureCount,
                 options.CopyMoveMatchDistance,
                 options.CopyMoveRansacReproj,
@@ -51,22 +49,22 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Task<(double, string)> spTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Splicing))
         {
+            Directory.CreateDirectory(options.SplicingMapDir);
             spTask = RunAsync(() =>
             {
-                string modelPath = SplicingModelPath;
+                string modelPath = options.SplicingModelPath;
                 if (!Path.IsPathRooted(modelPath))
                 {
                     if (!File.Exists(modelPath))
                         modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
                     if (!File.Exists(modelPath))
                         modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                            "..", "..", "..", "..", "..", "..", "ImageForensics", "src",
-                            "Models", "onnx", modelPath));
+                            "..", "..", "..", "..", "..", "..", modelPath));
                 }
 
                 return DlSplicingDetector.AnalyzeSplicing(
                     imagePath,
-                    workDir,
+                    options.SplicingMapDir,
                     modelPath,
                     options.SplicingInputWidth,
                     options.SplicingInputHeight);
@@ -76,9 +74,10 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Task<(double, string)> ipTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Inpainting))
         {
+            Directory.CreateDirectory(options.NoiseprintMapDir);
             ipTask = RunAsync(() =>
             {
-                string modelsDir = NoiseprintModelsDir;
+                string modelsDir = options.NoiseprintModelsDir;
                 if (!Path.IsPathRooted(modelsDir))
                 {
                     modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
@@ -89,7 +88,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
                 return NoiseprintSdkWrapper.Run(
                     imagePath,
-                    workDir,
+                    options.NoiseprintMapDir,
                     modelsDir,
                     options.NoiseprintInputSize);
             });
@@ -100,9 +99,10 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
                 (0d, new Dictionary<string, string?>()));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Exif))
         {
+            Directory.CreateDirectory(options.MetadataMapDir);
             exifTask = RunAsync(() => ExifChecker.Analyze(
                 imagePath,
-                workDir,
+                options.MetadataMapDir,
                 options.ExpectedCameraModels));
         }
 
@@ -116,12 +116,20 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
         byte[] ReadBytes(string p) => File.Exists(p) ? File.ReadAllBytes(p) : Array.Empty<byte>();
 
-        var result = new ForensicsResult(elaScore, ReadBytes(elaMapPath), string.Empty, cmScore, ReadBytes(cmMaskPath))
+        var result = new ForensicsResult(
+            elaScore,
+            ReadBytes(elaMapPath),
+            elaMapPath,
+            cmScore,
+            ReadBytes(cmMaskPath),
+            cmMaskPath)
         {
-            SplicingScore   = spScore,
+            SplicingScore = spScore,
             SplicingMap = ReadBytes(spMapPath),
-            InpaintingScore   = ipScore,
+            SplicingMapPath = spMapPath,
+            InpaintingScore = ipScore,
             InpaintingMap = ReadBytes(ipMapPath),
+            InpaintingMapPath = ipMapPath,
             ExifScore = exifScore,
             ExifAnomalies = exifAnomalies
         };
@@ -141,3 +149,4 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         return result;
     }
 }
+

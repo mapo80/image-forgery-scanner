@@ -31,9 +31,18 @@ public static class AnalyzerEndpoints
         var workDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(workDir);
 
+        var opts = options with
+        {
+            WorkDir = workDir,
+            CopyMoveMaskDir = workDir,
+            SplicingMapDir = workDir,
+            NoiseprintMapDir = workDir,
+            MetadataMapDir = workDir
+        };
+
         try
         {
-            var result = await analyzer.AnalyzeAsync(tempFile, options, workDir);
+            var result = await analyzer.AnalyzeAsync(tempFile, opts);
             return Results.Ok(result);
         }
         finally

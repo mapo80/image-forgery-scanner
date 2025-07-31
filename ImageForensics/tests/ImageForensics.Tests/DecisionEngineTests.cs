@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using ImageForensics.Core.Algorithms;
 using ImageForensics.Core.Models;
@@ -19,7 +20,7 @@ public class DecisionEngineTests
     };
 
     private static ForensicsResult MakeResult(double score)
-        => new ForensicsResult(score, string.Empty, string.Empty, score, string.Empty)
+        => new ForensicsResult(score, Array.Empty<byte>(), string.Empty, score, Array.Empty<byte>(), string.Empty)
         {
             SplicingScore = score,
             InpaintingScore = score,

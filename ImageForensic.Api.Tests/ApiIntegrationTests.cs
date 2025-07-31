@@ -16,7 +16,8 @@ public class ApiIntegrationTests
     [Fact]
     public async Task PostAnalyze_ReturnsOkWithResult()
     {
-        var fakeResult = new ForensicsResult(0.1, new byte[] { 7 }, "ok", 0.2, new byte[] { 6 });
+        var fakeResult = new ForensicsResult(0.1, new byte[] { 7 }, "ela.png", 0.2, new byte[] { 6 }, "mask.png")
+        { Verdict = "ok" };
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
@@ -44,7 +45,7 @@ public class ApiIntegrationTests
     {
         private readonly ForensicsResult _result;
         public FakeAnalyzer(ForensicsResult result) => _result = result;
-        public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir)
+        public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
             => Task.FromResult(_result);
     }
 }

@@ -1,7 +1,22 @@
+using System.IO;
+
 namespace ImageForensics.Core.Models;
 
 public record ForensicsOptions
 {
+    // Directories where intermediate artifacts are written. They default to
+    // the system temporary folder so that callers can simply override the
+    // desired paths.
+    public string WorkDir          { get; init; } = Path.GetTempPath();
+    public string CopyMoveMaskDir  { get; init; } = Path.GetTempPath();
+    public string SplicingMapDir   { get; init; } = Path.GetTempPath();
+    public string NoiseprintMapDir { get; init; } = Path.GetTempPath();
+    public string MetadataMapDir   { get; init; } = Path.GetTempPath();
+
+    // Model locations which can be overridden for custom deployments.
+    public string SplicingModelPath  { get; init; } = "mantranet_256x256.onnx";
+    public string NoiseprintModelsDir { get; init; } = "ImageForensics/src/Models/onnx/noiseprint";
+
     public int ElaQuality { get; init; } = 75;
 
     public int    CopyMoveFeatureCount  { get; init; } = 5000;
