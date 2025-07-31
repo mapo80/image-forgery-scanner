@@ -111,14 +111,11 @@ dotnet run --project ImageForensic.Api/ImageForensic.Api.csproj
 ```
 
 ### Endpoint `/analyze`
-Richiede una richiesta `POST` con corpo JSON:
-```json
-{
-  "imagePath": "percorso/dell/immagine.jpg",
-  "options": { /* campi di ForensicsOptions */ }
-}
+Richiede una richiesta `POST` `multipart/form-data` contenente il file da analizzare nel campo `image`. Eventuali parametri di `ForensicsOptions` possono essere passati come altri campi del form; i percorsi dei file generati sono gestiti internamente creando una cartella temporanea per ogni richiesta. Esempio:
+```bash
+curl -F "image=@percorso/dell/immagine.jpg" http://localhost:5000/analyze
 ```
-La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate e verdetto. La documentazione Swagger è disponibile all'indirizzo `/swagger`.
+La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate come array di byte e verdetto. La documentazione Swagger è disponibile all'indirizzo `/swagger`.
 
 ### Parametri principali
 `ForensicsOptions` espone diversi parametri regolabili:
@@ -126,15 +123,13 @@ La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate e verde
 | Property | Description | Default |
 |--------------------------|----------------------------------------------------------|--------:|
 | `ElaQuality` | JPEG quality used when recompressing the image for ELA | `75` |
-| `WorkDir` | Directory where the ELA map is saved | `results` |
 | `CopyMoveFeatureCount` | Number of SIFT features extracted for copy‑move detection | `5000` |
 | `CopyMoveMatchDistance` | Maximum descriptor distance for a valid match | `3.0` |
 | `CopyMoveRansacReproj` | RANSAC reprojection threshold in pixels | `3.0` |
 | `CopyMoveRansacProb` | Desired RANSAC success probability | `0.99` |
-| `CopyMoveMaskDir` | Directory where the copy‑move mask is written | `results` |
-| `NoiseprintModelsDir` | Directory containing Noiseprint ONNX models | `ImageForensics/src/Models/onnx/noiseprint` |
+| `SplicingInputWidth` | Width for the splicing model input | `256` |
+| `SplicingInputHeight` | Height for the splicing model input | `256` |
 | `NoiseprintInputSize` | Resize size fed into the Noiseprint model | `320` |
-| `NoiseprintMapDir` | Directory where the Noiseprint heat-map is saved | `results` |
 | `ElaWeight` | Weight of the ELA score in the final decision | `1.0` |
 | `CopyMoveWeight` | Weight of the copy‑move score | `1.0` |
 | `SplicingWeight` | Weight of the splicing score | `1.0` |
@@ -143,16 +138,21 @@ La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate e verde
 | `CleanThreshold` | Score below this value is considered `Clean` | `0.2` |
 | `TamperedThreshold` | Score above this value is considered `Tampered` | `0.8` |
 
+
 `ForensicsResult` restituisce i valori seguenti:
 
 | Field | Meaning |
 |--------------------|------------------------------------------------------------|
 | `ElaScore` | Normalised error level analysis score |
-| `ElaMapPath` | Path of the PNG heat‑map |
+| `ElaMap` | PNG heat‑map bytes |
 | `CopyMoveScore` | Ratio of matched keypoints consistent with a geometric transform |
-| `CopyMoveMaskPath` | Path of the copy‑move mask |
+| `CopyMoveMask` | Copy‑move mask bytes |
+| `SplicingScore` | Score from the splicing detector |
+| `SplicingMap` | Splicing heat‑map bytes |
 | `InpaintingScore` | Mean value of the Noiseprint heat‑map |
-| `InpaintingMapPath` | Path of the Noiseprint heat‑map |
+| `InpaintingMap` | Noiseprint heat‑map bytes |
+| `ExifScore` | Metadata checker score |
+| `ExifAnomalies` | Detected metadata anomalies |
 | `Verdict` | Final decision after aggregating all detectors |
 | `TotalScore` | Weighted sum of all individual scores |
 
@@ -170,7 +170,7 @@ Basato sul modello ONNX **ManTraNet** eseguito con ONNX Runtime. Richiede `mantr
 Utilizza i modelli Noiseprint specifici per ogni fattore di qualità JPEG (`model_qfXX.onnx`) presenti in `noiseprint`. Il modulo stima la qualità con `JpegQualityEstimator` e carica il modello corrispondente (per PNG usa `model_qf101.onnx`). L'immagine viene convertita in scala di grigi, ridimensionata a `NoiseprintInputSize` (320 di default) e analizzata. La heat-map risultante evidenzia le zone potenzialmente inpainted; lo score è la media normalizzata di tale mappa.
 
 ### Metadata Checker
-Utilizza la libreria `MetadataExtractor` per analizzare EXIF/XMP/IPTC. Vengono controllati `DateTimeOriginal`, `Software`, `Make/Model` e i tag GPS. Ogni anomalia incrementa lo score (range 0‑1). Se `MetadataMapDir` è impostato viene scritto un report JSON con tutti i tag.
+Utilizza la libreria `MetadataExtractor` per analizzare EXIF/XMP/IPTC. Vengono controllati `DateTimeOriginal`, `Software`, `Make/Model` e i tag GPS. Ogni anomalia incrementa lo score (range 0‑1). Viene scritto un report JSON con tutti i tag.
 
 ## Decision Engine
 I punteggi dei moduli sono combinati tramite pesi configurabili:
@@ -187,13 +187,13 @@ Esempio di output JSON:
 ```json
 {
   "ElaScore": 0.010,
-  "ElaMapPath": "results/photo_ela.png",
+  "ElaMap": "iVBORw0KGgo...",
   "CopyMoveScore": 0.000,
-  "CopyMoveMaskPath": "results/photo_copymove.png",
+  "CopyMoveMask": "iVBORw0KGgo...",
   "SplicingScore": 0.042,
-  "SplicingMapPath": "results/photo_splicing.png",
+  "SplicingMap": "iVBORw0KGgo...",
   "InpaintingScore": 0.015,
-  "InpaintingMapPath": "results/photo_inpainting.png",
+  "InpaintingMap": "iVBORw0KGgo...",
   "ExifScore": 0.000,
   "TotalScore": 0.067,
   "Verdict": "Clean"
@@ -216,7 +216,7 @@ dotnet test ImageForensic.Api.Tests/ImageForensic.Api.Tests.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-07-31** – 2 test completati con successo (`ImageForensic.Api.Tests`).
+Ultima esecuzione test: **2025-07-31** – 4 test completati con successo (`TestOpenCvSharp`, `ImageForensic.Api.Tests`).
 
 ### Riepilogo test
 

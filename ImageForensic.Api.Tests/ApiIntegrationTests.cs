@@ -1,6 +1,7 @@
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using ImageForensic.Api.Models;
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,7 +16,7 @@ public class ApiIntegrationTests
     [Fact]
     public async Task PostAnalyze_ReturnsOkWithResult()
     {
-        var fakeResult = new ForensicsResult(0.1, "ela", "ok", 0.2, "mask");
+        var fakeResult = new ForensicsResult(0.1, new byte[] { 7 }, "ok", 0.2, new byte[] { 6 });
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
@@ -26,13 +27,16 @@ public class ApiIntegrationTests
             });
         });
         var client = factory.CreateClient();
-        var request = new AnalyzeImageRequest("img.jpg", new ForensicsOptions());
-        var response = await client.PostAsJsonAsync("/analyze", request);
+        using var content = new MultipartFormDataContent();
+        var imageContent = new ByteArrayContent(new byte[] { 1, 2, 3 });
+        imageContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+        content.Add(imageContent, "image", "img.jpg");
+        var response = await client.PostAsync("/analyze", content);
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadFromJsonAsync<ForensicsResult>();
         Assert.NotNull(result);
-        Assert.Equal(fakeResult.ElaScore, result!.ElaScore);
-        Assert.Equal(fakeResult.CopyMoveScore, result.CopyMoveScore);
+        Assert.NotEmpty(result!.ElaMap);
+        Assert.NotEmpty(result.CopyMoveMask);
         Assert.Equal(fakeResult.Verdict, result.Verdict);
     }
 
@@ -40,7 +44,7 @@ public class ApiIntegrationTests
     {
         private readonly ForensicsResult _result;
         public FakeAnalyzer(ForensicsResult result) => _result = result;
-        public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
+        public Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir)
             => Task.FromResult(_result);
     }
 }

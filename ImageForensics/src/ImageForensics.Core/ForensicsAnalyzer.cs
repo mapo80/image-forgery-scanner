@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using ImageForensics.Core.Algorithms;
@@ -8,13 +10,18 @@ namespace ImageForensics.Core;
 
 public interface IForensicsAnalyzer
 {
-    Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options);
+    Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir);
 }
 
 public class ForensicsAnalyzer : IForensicsAnalyzer
 {
-    public async Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options)
+    private const string SplicingModelPath = "mantranet_256x256.onnx";
+    private const string NoiseprintModelsDir = "ImageForensics/src/Models/onnx/noiseprint";
+
+    public async Task<ForensicsResult> AnalyzeAsync(string imagePath, ForensicsOptions options, string workDir)
     {
+        Directory.CreateDirectory(workDir);
+
         var semaphore = new SemaphoreSlim(Math.Max(1, options.MaxParallelChecks));
         Task<T> RunAsync<T>(Func<T> func) => Task.Run(() =>
         {
@@ -26,7 +33,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Task<(double, string)> elaTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Ela))
         {
-            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality));
+            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, workDir, options.ElaQuality));
         }
 
         Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
@@ -34,7 +41,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             cmTask = RunAsync(() => CopyMoveDetector.Analyze(
                 imagePath,
-                options.CopyMoveMaskDir,
+                workDir,
                 options.CopyMoveFeatureCount,
                 options.CopyMoveMatchDistance,
                 options.CopyMoveRansacReproj,
@@ -46,7 +53,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             spTask = RunAsync(() =>
             {
-                string modelPath = options.SplicingModelPath;
+                string modelPath = SplicingModelPath;
                 if (!Path.IsPathRooted(modelPath))
                 {
                     if (!File.Exists(modelPath))
@@ -59,7 +66,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
                 return DlSplicingDetector.AnalyzeSplicing(
                     imagePath,
-                    options.SplicingMapDir,
+                    workDir,
                     modelPath,
                     options.SplicingInputWidth,
                     options.SplicingInputHeight);
@@ -71,7 +78,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             ipTask = RunAsync(() =>
             {
-                string modelsDir = options.NoiseprintModelsDir;
+                string modelsDir = NoiseprintModelsDir;
                 if (!Path.IsPathRooted(modelsDir))
                 {
                     modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
@@ -82,7 +89,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
                 return NoiseprintSdkWrapper.Run(
                     imagePath,
-                    options.NoiseprintMapDir,
+                    workDir,
                     modelsDir,
                     options.NoiseprintInputSize);
             });
@@ -95,7 +102,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             exifTask = RunAsync(() => ExifChecker.Analyze(
                 imagePath,
-                options.MetadataMapDir,
+                workDir,
                 options.ExpectedCameraModels));
         }
 
@@ -103,16 +110,18 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
 
         var (elaScore, elaMapPath) = await elaTask;
         var (cmScore, cmMaskPath) = await cmTask;
-        var (spScore, spMap) = await spTask;
-        var (ipScore, ipMap) = await ipTask;
+        var (spScore, spMapPath) = await spTask;
+        var (ipScore, ipMapPath) = await ipTask;
         var (exifScore, exifAnomalies) = await exifTask;
 
-        var result = new ForensicsResult(elaScore, elaMapPath, string.Empty, cmScore, cmMaskPath)
+        byte[] ReadBytes(string p) => File.Exists(p) ? File.ReadAllBytes(p) : Array.Empty<byte>();
+
+        var result = new ForensicsResult(elaScore, ReadBytes(elaMapPath), string.Empty, cmScore, ReadBytes(cmMaskPath))
         {
             SplicingScore   = spScore,
-            SplicingMapPath = spMap,
+            SplicingMap = ReadBytes(spMapPath),
             InpaintingScore   = ipScore,
-            InpaintingMapPath = ipMap,
+            InpaintingMap = ReadBytes(ipMapPath),
             ExifScore = exifScore,
             ExifAnomalies = exifAnomalies
         };
