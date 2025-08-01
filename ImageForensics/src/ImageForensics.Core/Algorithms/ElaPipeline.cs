@@ -6,11 +6,49 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using OpenCvSharp;
+using ImageMagick;
 
 namespace ImageForensics.Core.Algorithms;
 
 public static class ElaPipeline
 {
+    public static (double Score, string MapPath) Analyze(
+        string imagePath,
+        string workDir,
+        int jpegQuality,
+        int windowSize,
+        double k,
+        int minArea,
+        int kernelSize)
+    {
+        Directory.CreateDirectory(workDir);
+        using var img = new MagickImage(imagePath);
+        var ela = ElaAdvanced.ComputeElaMap(img, jpegQuality);
+        double thr = ComputeSauvolaThreshold(ela, windowSize, k);
+        var rawMask = ElaMetrics.BinarizeElaMap(ela, thr);
+        var refined = RefineMask(rawMask, minArea, kernelSize);
+
+        string baseName = Path.GetFileNameWithoutExtension(imagePath);
+        string mapPath = Path.Combine(workDir, $"{baseName}_ela.png");
+        int w = ela.GetLength(0);
+        int h = ela.GetLength(1);
+        var buffer = new byte[w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                buffer[y * w + x] = (byte)Math.Round(Math.Clamp(ela[x, y], 0f, 1f) * 255.0);
+        var settings = new MagickReadSettings { Width = w, Height = h, Format = MagickFormat.Gray, Depth = 8 };
+        using (var outImg = new MagickImage(buffer, settings))
+            outImg.Write(mapPath);
+
+        int count = 0;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (refined[x, y]) count++;
+        double score = w * h == 0 ? 0 : (double)count / (w * h);
+
+        return (score, mapPath);
+    }
+
     public static float[,] ComputeElaMap(Bitmap img, int jpegQuality = 90)
     {
         using var ms = new MemoryStream();

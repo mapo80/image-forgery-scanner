@@ -97,6 +97,18 @@ public class IndexModel : PageModel
         [Display(Name = "ELA quality")]
         public int ElaQuality { get; set; } = 75;
 
+        [Display(Name = "ELA window size")]
+        public int ElaWindowSize { get; set; } = 15;
+
+        [Display(Name = "ELA k")]
+        public double ElaK { get; set; } = 0.2;
+
+        [Display(Name = "ELA min area")]
+        public int ElaMinArea { get; set; } = 100;
+
+        [Display(Name = "ELA kernel size")]
+        public int ElaKernelSize { get; set; } = 5;
+
         [Display(Name = "Copy-Move feature count")]
         public int CopyMoveFeatureCount { get; set; } = 5000;
 
@@ -145,6 +157,10 @@ public class IndexModel : PageModel
             return new AnalyzeImageOptions
             {
                 ElaQuality = ElaQuality,
+                ElaWindowSize = ElaWindowSize,
+                ElaK = ElaK,
+                ElaMinArea = ElaMinArea,
+                ElaKernelSize = ElaKernelSize,
                 CopyMoveFeatureCount = CopyMoveFeatureCount,
                 CopyMoveMatchDistance = CopyMoveMatchDistance,
                 CopyMoveRansacReproj = CopyMoveRansacReproj,

@@ -27,6 +27,10 @@
                     </thead>
                     <tbody>
                         <tr><td>ELA quality</td><td>@Model.DefaultOptions.ElaQuality</td></tr>
+                        <tr><td>ELA window size</td><td>@Model.DefaultOptions.ElaWindowSize</td></tr>
+                        <tr><td>ELA k</td><td>@Model.DefaultOptions.ElaK</td></tr>
+                        <tr><td>ELA min area</td><td>@Model.DefaultOptions.ElaMinArea</td></tr>
+                        <tr><td>ELA kernel size</td><td>@Model.DefaultOptions.ElaKernelSize</td></tr>
                         <tr><td>Copy-Move feature count</td><td>@Model.DefaultOptions.CopyMoveFeatureCount</td></tr>
                         <tr><td>Copy-Move match distance</td><td>@Model.DefaultOptions.CopyMoveMatchDistance</td></tr>
                         <tr><td>Copy-Move RANSAC reprojection</td><td>@Model.DefaultOptions.CopyMoveRansacReproj</td></tr>
@@ -59,6 +63,30 @@
                         @Html.DisplayNameFor(m => m.Options.ElaQuality) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="JPEG re-save quality used for the analysis."></i>
                     </label>
                     <input class="form-control" asp-for="Options.ElaQuality" type="number" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ElaWindowSize">
+                        @Html.DisplayNameFor(m => m.Options.ElaWindowSize)
+                    </label>
+                    <input class="form-control" asp-for="Options.ElaWindowSize" type="number" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ElaK">
+                        @Html.DisplayNameFor(m => m.Options.ElaK)
+                    </label>
+                    <input class="form-control" asp-for="Options.ElaK" type="number" step="0.01" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ElaMinArea">
+                        @Html.DisplayNameFor(m => m.Options.ElaMinArea)
+                    </label>
+                    <input class="form-control" asp-for="Options.ElaMinArea" type="number" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ElaKernelSize">
+                        @Html.DisplayNameFor(m => m.Options.ElaKernelSize)
+                    </label>
+                    <input class="form-control" asp-for="Options.ElaKernelSize" type="number" />
                 </div>
             </div>
         </div>

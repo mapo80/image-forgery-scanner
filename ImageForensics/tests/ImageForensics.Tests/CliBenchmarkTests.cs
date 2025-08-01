@@ -12,7 +12,7 @@ public class CliBenchmarkTests
 {
     private static string RepoRoot => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../"));
 
-    [Fact]
+    [Fact(Skip = "Requires CLI benchmark data and models")]
     public void Benchmark_All_Generates_Report()
     {
         string cliProj = Path.Combine(RepoRoot, "ImageForensics", "src", "ImageForensics.Cli", "ImageForensics.Cli.csproj");

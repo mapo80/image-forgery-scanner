@@ -62,7 +62,14 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             try
             {
                 elaTask = RunAsync(
-                    () => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality),
+                    () => ElaPipeline.Analyze(
+                        imagePath,
+                        options.WorkDir,
+                        options.ElaQuality,
+                        options.ElaWindowSize,
+                        options.ElaK,
+                        options.ElaMinArea,
+                        options.ElaKernelSize),
                     (0d, string.Empty),
                     "ELA");
             }
