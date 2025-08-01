@@ -1,104 +1,61 @@
-# syntax=docker/dockerfile:1.4
-#############################################
-# Builder per OpenCV 4.10 e OpenCvSharpExtern (x86_64)
-#############################################
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:8.0-noble AS builder
+# 1) Runtime base AMD64
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:9.0-noble AS base
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      libgtk2.0-0 libgdk-pixbuf2.0-0 libtesseract5 libdc1394-25 \
+      libavcodec60 libavformat60 libswscale7 libsm6 libxext6 \
+      libxrender1 libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV DEBIAN_FRONTEND=noninteractive  
-ENV OPENCV_VERSION=4.10.0  
+WORKDIR /app
+EXPOSE 8080
 
-WORKDIR /
+# 2) Build nativo ARM64 (no QEMU)
+FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
+ARG BUILD_CONFIGURATION=Release
 
-# Install system dependencies per Ubuntu 24.04
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       apt-transport-https \
-       software-properties-common \
-       wget \
-       unzip \
-       ca-certificates \
-       build-essential \
-       cmake \
-       git \
-       libtbb-dev \
-       libatlas-base-dev \
-       libgtk2.0-dev \
-       libavcodec-dev \
-       libavformat-dev \
-       libswscale-dev \
-       libdc1394-dev \
-       libxine2-dev \
-       libv4l-dev \
-       libtheora-dev \
-       libvorbis-dev \
-       libxvidcore-dev \
-       libopencore-amrnb-dev \
-       libopencore-amrwb-dev \
-       x264 \
-       libtesseract-dev \
-       libgdiplus \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY ["ImageForensic.Api/ImageForensic.Api.csproj", "ImageForensic.Api/"]
 
-# Scarica e compila OpenCV 4.10 con moduli contrib (shared libs)
-RUN wget -q https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
-    && unzip -q ${OPENCV_VERSION}.zip && rm ${OPENCV_VERSION}.zip && mv opencv-${OPENCV_VERSION} opencv \
-    && wget -q https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip \
-    && unzip -q ${OPENCV_VERSION}.zip && rm ${OPENCV_VERSION}.zip && mv opencv_contrib-${OPENCV_VERSION} opencv_contrib
+# specifichiamo il RID linux-x64 già in fase di restore
+RUN dotnet restore "ImageForensic.Api/ImageForensic.Api.csproj" \
+    --runtime linux-x64
 
-RUN cd opencv \
-    && mkdir build && cd build \
-    && cmake \
-         -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
-         -D CMAKE_BUILD_TYPE=RELEASE \
-         -D BUILD_SHARED_LIBS=ON \
-         -D ENABLE_CXX11=ON \
-         -D BUILD_EXAMPLES=OFF \
-         -D BUILD_DOCS=OFF \
-         -D BUILD_PERF_TESTS=OFF \
-         -D BUILD_TESTS=OFF \
-         -D BUILD_JAVA=OFF \
-         -D BUILD_opencv_app=OFF \
-         -D BUILD_opencv_barcode=OFF \
-         -D BUILD_opencv_wechat_qrcode=ON \
-         -D WITH_GSTREAMER=OFF \
-         -D WITH_ADE=OFF \
-         -D OPENCV_ENABLE_NONFREE=ON \
-         -D CMAKE_RULE_MESSAGES=OFF \
-         -D CMAKE_MESSAGE_LOG_LEVEL=WARNING \
-         .. \
-    && make -j"$(nproc)" \
-    && make install \
-    && ldconfig
+COPY . .
+WORKDIR "/src/ImageForensic.Api"
 
-# Clona e compila OpenCvSharp binding nativo
-RUN git clone https://github.com/shimat/opencvsharp.git /opencvsharp \
-    && mkdir /opencvsharp/make \
-    && cd /opencvsharp/make \
-    && cmake -D CMAKE_INSTALL_PREFIX=/opencvsharp/make /opencvsharp/src \
-    && make -j"$(nproc)" install \
-    && cp /opencvsharp/make/OpenCvSharpExtern/libOpenCvSharpExtern.so /usr/lib/
+# costruiamo la tua app (produce DLL cross-platform)
+RUN dotnet build "./ImageForensic.Api.csproj" \
+    -c $BUILD_CONFIGURATION -o /app/build
 
-# Raccogli dipendenze native via ldd (inclusi transitivi)
-RUN mkdir -p /usr/lib/deps \
-    && ldd /usr/lib/libOpenCvSharpExtern.so \
-       | awk '/=>/ { print $3 }' \
-       | xargs -r -I{} sh -c 'ldd {} | awk "/=>/ {print \$3}" | xargs -r -I% cp -v % /usr/lib/deps; cp -v {} /usr/lib/deps'
+# 3) Publish per linux-x64: genera il launcher x64 anche se siamo su ARM64
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
 
-#############################################
-# Final: immagine runtime con solo .so e dipendenze (x86_64)
-#############################################
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/runtime-deps:8.0-noble AS final
+RUN dotnet publish "./ImageForensic.Api.csproj" \
+    -c $BUILD_CONFIGURATION \
+    -r linux-x64 \
+    --self-contained false \
+    -o /app/publish \
+    /p:UseAppHost=true
 
-# Copia binding e dipendenze native
-COPY --from=builder /usr/lib/libOpenCvSharpExtern.so /usr/lib/
-COPY --from=builder /usr/lib/deps/*.so /usr/lib/
+# 4) Finale: runtime AMD64 + .so custom x64
+FROM base AS final
+WORKDIR /app
 
-#############################################
-# Export .so su filesystem locale (host) + shell
-#############################################
-FROM --platform=linux/amd64 alpine:3.18 AS export
-RUN mkdir /so
-COPY --from=builder /usr/lib/libOpenCvSharpExtern.so /so/
-COPY --from=builder /usr/lib/deps/*.so       /so/
-CMD ["/bin/sh"]
+# Copio l’app pubblicata (x64)
+COPY --from=publish /app/publish .
+
+# Creo la cartella dove OpenCvSharp cerca le native per linux-x64
+RUN mkdir -p runtimes/linux-x64/native
+
+# Copio il tuo .so (buildato x64) in quella cartella
+COPY so/libOpenCvSharpExtern.so runtimes/linux-x64/native/
+
+# Imposto i permessi
+RUN chmod 755 runtimes/linux-x64/native/libOpenCvSharpExtern.so
+
+# Aggiungo il path alle librerie native
+ENV LD_LIBRARY_PATH=/app/runtimes/linux-x64/native:${LD_LIBRARY_PATH}
+
+ENTRYPOINT ["dotnet", "ImageForensic.Api.dll"]

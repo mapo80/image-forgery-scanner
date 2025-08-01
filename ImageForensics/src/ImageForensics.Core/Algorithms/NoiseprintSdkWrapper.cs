@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms;
 
@@ -23,6 +24,7 @@ public static class NoiseprintSdkWrapper
         string modelsDir,
         int inputSize)
     {
+        Log.Information("Inpainting analysis for {Image}", imagePath);
         var estimator = new JpegQualityEstimator();
         int qf = estimator.EstimateQuality(imagePath) ?? 101;
         string modelPath = Path.Combine(modelsDir, $"model_qf{qf}.onnx");
@@ -61,9 +63,8 @@ public static class NoiseprintSdkWrapper
         Cv2.ImWrite(outPath, heat);
 
         sw.Stop();
-        Console.WriteLine($"Noiseprint detection time for {baseName}: {sw.ElapsedMilliseconds} ms");
-
         double score = Cv2.Mean(heat)[0] / 255.0;
+        Log.Information("Inpainting completed for {Image} in {Elapsed} ms: {Score}", imagePath, sw.ElapsedMilliseconds, score);
         return (score, outPath);
     }
 }
