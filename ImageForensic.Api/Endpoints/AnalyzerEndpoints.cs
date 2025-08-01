@@ -18,7 +18,7 @@ public static class AnalyzerEndpoints
               .DisableAntiforgery();
     }
 
-    internal static async Task<IResult> AnalyzeImage([FromForm] IFormFile? image, [FromForm] AnalyzeImageOptions? options, IForensicsAnalyzer analyzer)
+    internal static async Task<IResult> AnalyzeImage(IFormFile? image, [FromForm] AnalyzeImageOptions? options, IForensicsAnalyzer analyzer)
     {
         if (image is null)
             return Results.BadRequest("Missing image");
