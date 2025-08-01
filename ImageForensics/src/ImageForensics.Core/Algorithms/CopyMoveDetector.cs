@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Collections.Concurrent;
 using OpenCvSharp;
 using OpenCvSharp.Features2D;
 
@@ -7,6 +8,8 @@ namespace ImageForensics.Core.Algorithms;
 
 public static class CopyMoveDetector
 {
+    private static readonly ConcurrentDictionary<int, SIFT> SiftCache = new();
+
     public static (double Score, string MaskPath) Analyze(
         string imagePath,
         string maskDir,
@@ -23,7 +26,7 @@ public static class CopyMoveDetector
         if (img.Empty())
             return (0.0, maskPath);
 
-        using var sift = SIFT.Create(featureCount);
+        var sift = SiftCache.GetOrAdd(featureCount, f => SIFT.Create(f));
         using var descriptors = new Mat();
         sift.DetectAndCompute(img, null, out KeyPoint[] keypoints, descriptors);
 
@@ -33,9 +36,14 @@ public static class CopyMoveDetector
             return (0.0, maskPath);
         }
 
-        using var matcher = new BFMatcher(NormTypes.L2, crossCheck: true);
-        var matches = matcher.Match(descriptors, descriptors)
-            .Where(m => m.QueryIdx != m.TrainIdx && m.Distance < matchMaxDist)
+        using var matcher = new FlannBasedMatcher();
+        var knn = matcher.KnnMatch(descriptors, descriptors, 2);
+        var matches = knn
+            .Where(m => m.Length == 2 &&
+                        m[0].QueryIdx != m[0].TrainIdx &&
+                        m[0].Distance < matchMaxDist &&
+                        m[0].Distance < 0.75 * m[1].Distance)
+            .Select(m => m[0])
             .ToArray();
 
         if (matches.Length < 3)

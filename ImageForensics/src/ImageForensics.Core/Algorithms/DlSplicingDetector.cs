@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using OpenCvSharp;
 using Microsoft.ML.OnnxRuntime;
@@ -24,6 +25,8 @@ namespace ImageForensics.Core.Algorithms
     /// </returns>
     public static class DlSplicingDetector
     {
+        private static readonly ConcurrentDictionary<string, InferenceSession> SessionCache = new();
+
         public static (double Score, string MapPath) AnalyzeSplicing(
             string imagePath,
             string mapDir,
@@ -37,20 +40,20 @@ namespace ImageForensics.Core.Algorithms
             var sw = Stopwatch.StartNew();
 
             // 1) Load & preprocess
-            Mat bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
-            Mat resized = new Mat();
-            Cv2.Resize(bgr, resized, new Size(inputW, inputH));
-            resized.ConvertTo(resized, MatType.CV_32FC3, 1/255.0);
-            Cv2.CvtColor(resized, resized, ColorConversionCodes.BGR2RGB);
+            Mat img = Cv2.ImRead(imagePath, ImreadModes.Color);
+            int origW = img.Cols;
+            int origH = img.Rows;
+            Cv2.Resize(img, img, new Size(inputW, inputH));
+            img.ConvertTo(img, MatType.CV_32FC3, 1 / 255.0);
+            Cv2.CvtColor(img, img, ColorConversionCodes.BGR2RGB);
 
-            // 2) Tensor NCHW
-            var tensor = new DenseTensor<float>(new[] {1, inputH, inputW, 3});
+            // 2) Tensor NHWC
             var data = new float[inputW * inputH * 3];
-            Marshal.Copy(resized.Data, data, 0, data.Length);
-            data.AsSpan().CopyTo(tensor.Buffer.Span);
+            Marshal.Copy(img.Data, data, 0, data.Length);
+            var tensor = new DenseTensor<float>(data, new[] { 1, inputH, inputW, 3 });
 
             // 3) Inference
-            using var session = new InferenceSession(modelPath);
+            var session = SessionCache.GetOrAdd(modelPath, p => new InferenceSession(p));
             var inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor("img_in", tensor)
@@ -61,7 +64,7 @@ namespace ImageForensics.Core.Algorithms
             // 4) Post‑process
             Mat heat = new Mat(inputH, inputW, MatType.CV_32FC1);
             heat.SetArray(output);
-            Cv2.Resize(heat, heat, new Size(bgr.Cols, bgr.Rows), 0, 0, InterpolationFlags.Linear);
+            Cv2.Resize(heat, heat, new Size(origW, origH), 0, 0, InterpolationFlags.Linear);
             Cv2.Normalize(heat, heat, 0, 255, NormTypes.MinMax);
             heat.ConvertTo(heat, MatType.CV_8UC1);
 

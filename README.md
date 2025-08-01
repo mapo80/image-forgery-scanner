@@ -102,6 +102,76 @@ dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-ela --
 dotnet run --project ImageForensics/src/ImageForensics.Cli -- --benchmark-all --input-dir dataset/casia2 --report-dir bench
 ```
 
+## Ottimizzazione Error-Level Analysis
+Misurati i tempi del modulo ELA su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 188 ± 106 |
+| Dopo ottimizzazione  | 185 ± 109 |
+
+L'eliminazione del `MemoryStream` a favore di una codifica in memoria riduce leggermente il tempo medio di analisi di circa l'1 %.
+
+## Ottimizzazione Copy‑Move
+Misurati i tempi del modulo di copy‑move su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 115 ± 79 |
+| Dopo ottimizzazione  | 112 ± 77 |
+
+L'uso di un matcher FLANN e il riutilizzo dell'estrattore SIFT riducono il tempo medio di analisi di circa il 3 %.
+
+## Ottimizzazione Splicing
+Misurati i tempi del modulo di splicing su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 2463 ± 353 |
+| Dopo ottimizzazione  | 2120 ± 699 |
+
+La cache dell'`InferenceSession` riduce il tempo medio di analisi di circa il 14 %.
+
+## Ottimizzazione preprocessing Splicing
+Misurati i tempi del modulo di splicing con preprocessing ottimizzato su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 2137 ± 349 |
+| Dopo ottimizzazione  | 2122 ± 278 |
+
+La rimozione della copia intermedia e il ridimensionamento in-place riducono il tempo medio di analisi di circa l'1 %.
+
+## Confronto sequenziale/parallelo Splicing
+Analizzati 20 file (10 da `dataset/authentic` e 10 da `dataset/tampered`) confrontando l'esecuzione sequenziale con quella paralella su 4 thread. La parallelizzazione non riduce il tempo di elaborazione di ogni immagine, che anzi cresce a causa della contesa delle risorse, ma abbatte il tempo totale portando un miglior throughput complessivo.
+
+| Modalità           | Immagini | Tempo totale (ms) | Tempo medio osservato (ms) | Deviazione standard (ms) | Tempo medio effettivo (ms) | Speedup |
+|--------------------|---------:|------------------:|---------------------------:|-------------------------:|---------------------------:|-------:|
+| Sequenziale        | 20       | 89497             | 4471                       | 648                     | 4475                       | 1.00× |
+| Parallelo (4 thread)| 20      | 62613             | 12359                      | 2343                    | 3131                       | 1.43× |
+
+L'esecuzione parallela riduce il tempo totale di circa il 30 % rispetto a quella sequenziale.
+
+## Ottimizzazione Inpainting
+Misurati i tempi del modulo Noiseprint su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 768 ± 339 |
+| Dopo ottimizzazione  | 638 ± 145 |
+
+La cache di più modelli e la lettura diretta in scala di grigi riducono il tempo medio di analisi di circa il 17 %.
+
+## Ottimizzazione Metadata
+Misurati i tempi del modulo EXIF su 10 immagini di `dataset/tampered`:
+
+| Versione | Tempo medio (ms) |
+|----------|-----------------:|
+| Prima ottimizzazione | 26 ± 74 |
+| Dopo ottimizzazione  | 24 ± 69 |
+
+La lettura delle directory di metadati in un'unica passata e l'uso di un `HashSet` per i modelli attesi eliminano enumerazioni ripetute, riducendo il tempo medio di analisi di circa l'8 %.
+
 ## API REST
 Il progetto `ImageForensic.Api` espone un endpoint HTTP per analizzare un'immagine tramite le stesse opzioni della libreria.
 
@@ -216,7 +286,7 @@ dotnet test ImageForensic.Api.Tests/ImageForensic.Api.Tests.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-07-31** – superati `TestOpenCvSharp`, `ImageForensic.Api.Tests` e `ImageForensics.Tests` (46 test totali).
+Ultima esecuzione test: **2025-08-01 06:41 UTC** – superati `TestOpenCvSharp` (2 test), `ImageForensic.Api.Tests` (4 test) e `ImageForensics.Tests` (46 test).
 
 ### Riepilogo test
 

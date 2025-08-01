@@ -4,11 +4,12 @@ using ImageForensics.Core.Algorithms;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Linq;
+using System.Collections.Concurrent;
 
 void PrintUsage()
 {
     Console.WriteLine("Usage: ImageForensics.Cli <image> [--workdir DIR] [--checks LIST] [--parallel N]");
-    Console.WriteLine("       ImageForensics.Cli --benchmark-ela|--benchmark-copy-move|--benchmark-splicing|--benchmark-inpainting|--benchmark-exif|--benchmark-all --input-dir DIR [--report-dir DIR] [--workdir DIR]");
+    Console.WriteLine("       ImageForensics.Cli --benchmark-ela|--benchmark-copy-move|--benchmark-splicing|--benchmark-inpainting|--benchmark-exif|--benchmark-all --input-dir DIR [--report-dir DIR] [--workdir DIR] [--parallel-images N]");
 }
 
 if (args.Length == 0)
@@ -23,6 +24,7 @@ string inputDir = string.Empty;
 string reportDir = "benchmark_report";
 ForensicsCheck checks = ForensicsCheck.All;
 int parallel = 1;
+int parallelImages = 1;
 
 bool bench = false;
 bool benchEla = false;
@@ -53,6 +55,9 @@ for (int i = 0; i < args.Length; i++)
             break;
         case "--parallel" when i + 1 < args.Length:
             parallel = int.Parse(args[++i]);
+            break;
+        case "--parallel-images" when i + 1 < args.Length:
+            parallelImages = int.Parse(args[++i]);
             break;
         case "--benchmark":
             bench = true;
@@ -96,7 +101,7 @@ if (runBenchmark)
         Console.WriteLine("--input-dir is required for benchmarking.");
         return;
     }
-    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll);
+    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages);
     return;
 }
 
@@ -137,7 +142,8 @@ static Task RunBenchmarkAsync(
     bool benchSp,
     bool benchIp,
     bool benchExif,
-    bool saveReport)
+    bool saveReport,
+    int parallelImages)
 {
     var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
         .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
@@ -157,15 +163,17 @@ static Task RunBenchmarkAsync(
         MetadataMapDir = workDir
     };
 
-    var elaTimes = new List<long>();
-    var cmTimes = new List<long>();
-    var spTimes = new List<long>();
-    var ipTimes = new List<long>();
-    var exifTimes = new List<long>();
+    var elaTimes = new ConcurrentBag<long>();
+    var cmTimes = new ConcurrentBag<long>();
+    var spTimes = new ConcurrentBag<long>();
+    var ipTimes = new ConcurrentBag<long>();
+    var exifTimes = new ConcurrentBag<long>();
 
-    var results = new List<Dictionary<string, object?>>();
+    var results = new ConcurrentBag<Dictionary<string, object?>>();
 
-    foreach (var file in files)
+    var totalSw = Stopwatch.StartNew();
+
+    void ProcessFile(string file)
     {
         var record = new Dictionary<string, object?>
         {
@@ -232,12 +240,26 @@ static Task RunBenchmarkAsync(
         results.Add(record);
     }
 
-    void PrintStats(string name, List<long> list)
+    if (parallelImages <= 1)
     {
-        if (list.Count == 0) return;
-        double avg = list.Average();
-        double std = Math.Sqrt(list.Sum(t => (t - avg) * (t - avg)) / list.Count);
-        Console.WriteLine($"{name,-10} – avg {avg:F0} ms ± {std:F0} ms on {list.Count} images");
+        foreach (var file in files)
+            ProcessFile(file);
+    }
+    else
+    {
+        Parallel.ForEach(files, new ParallelOptions { MaxDegreeOfParallelism = parallelImages }, ProcessFile);
+    }
+
+    totalSw.Stop();
+    Console.WriteLine($"Processed {files.Length} images in {totalSw.ElapsedMilliseconds} ms");
+
+    void PrintStats(string name, IEnumerable<long> list)
+    {
+        var arr = list.ToArray();
+        if (arr.Length == 0) return;
+        double avg = arr.Average();
+        double std = Math.Sqrt(arr.Sum(t => (t - avg) * (t - avg)) / arr.Length);
+        Console.WriteLine($"{name,-10} – avg {avg:F0} ms ± {std:F0} ms on {arr.Length} images");
     }
 
     Console.WriteLine("Benchmark summary:");
@@ -257,7 +279,7 @@ static Task RunBenchmarkAsync(
             ["Inpainting"] = ipTimes.Count == 0 ? null : new { Average = ipTimes.Average(), StdDev = Math.Sqrt(ipTimes.Sum(t => (t - ipTimes.Average()) * (t - ipTimes.Average())) / ipTimes.Count), Count = ipTimes.Count },
             ["EXIF"] = exifTimes.Count == 0 ? null : new { Average = exifTimes.Average(), StdDev = Math.Sqrt(exifTimes.Sum(t => (t - exifTimes.Average()) * (t - exifTimes.Average())) / exifTimes.Count), Count = exifTimes.Count }
         };
-        var obj = new { Results = results, Stats = stats };
+        var obj = new { Results = results.ToArray(), Stats = stats };
         string jsonPath = Path.Combine(reportDir, "benchmark.json");
         File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
     }

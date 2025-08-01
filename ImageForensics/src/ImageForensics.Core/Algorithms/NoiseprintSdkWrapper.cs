@@ -12,10 +12,10 @@ namespace ImageForensics.Core.Algorithms;
 /// </summary>
 public static class NoiseprintSdkWrapper
 {
-    private static int _currentQf = -1;
+    private static int _lastQf = -1;
 
-    /// <summary>Quality factor of the currently loaded model.</summary>
-    public static int LoadedQf => _currentQf;
+    /// <summary>Quality factor of the last model used.</summary>
+    public static int LoadedQf => _lastQf;
 
     public static (double Score, string MapPath) Run(
         string imagePath,
@@ -32,11 +32,8 @@ public static class NoiseprintSdkWrapper
             qf = 101;
         }
 
-        if (_currentQf != qf)
-        {
-            NoisePrintSdk.LoadModel(modelPath);
-            _currentQf = qf;
-        }
+        // Cache delle sessioni ONNX gestita da NoisePrintSdk
+        _lastQf = qf;
 
         Directory.CreateDirectory(mapDir);
         string baseName = Path.GetFileNameWithoutExtension(imagePath);
@@ -44,9 +41,7 @@ public static class NoiseprintSdkWrapper
 
         var sw = Stopwatch.StartNew();
 
-        using Mat bgr = Cv2.ImRead(imagePath, ImreadModes.Color);
-        using Mat gray = new();
-        Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
+        using Mat gray = Cv2.ImRead(imagePath, ImreadModes.Grayscale);
         using Mat resized = new();
         Cv2.Resize(gray, resized, new Size(inputSize, inputSize));
         resized.ConvertTo(resized, MatType.CV_32FC1, 1.0 / 255.0);
@@ -56,11 +51,11 @@ public static class NoiseprintSdkWrapper
         Marshal.Copy(resized.Data, data, 0, data.Length);
         data.AsSpan().CopyTo(tensor.Buffer.Span);
 
-        float[] output = NoisePrintSdk.RunInference(tensor);
+        float[] output = NoisePrintSdk.RunInference(modelPath, tensor);
         int side = (int)Math.Sqrt(output.Length);
         using Mat heat = new(side, side, MatType.CV_32FC1);
         heat.SetArray(output);
-        Cv2.Resize(heat, heat, new Size(bgr.Width, bgr.Height), 0, 0, InterpolationFlags.Linear);
+        Cv2.Resize(heat, heat, new Size(gray.Width, gray.Height), 0, 0, InterpolationFlags.Linear);
         Cv2.Normalize(heat, heat, 0, 255, NormTypes.MinMax);
         heat.ConvertTo(heat, MatType.CV_8UC1);
         Cv2.ImWrite(outPath, heat);
