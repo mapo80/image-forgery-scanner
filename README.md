@@ -223,6 +223,7 @@ La risposta è un oggetto `AnalyzeImageResult` con punteggi, mappe generate come
 | `InpaintingMap` | Noiseprint heat‑map bytes |
 | `ExifScore` | Metadata checker score |
 | `ExifAnomalies` | Detected metadata anomalies |
+| `Errors` | Mapping of failed checks to error messages |
 | `Verdict` | Final decision after aggregating all detectors |
 | `TotalScore` | Weighted sum of all individual scores |
 
