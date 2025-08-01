@@ -16,32 +16,42 @@ public record FeatureVector(
     float LocalVar
 );
 
+public class RefineParams
+{
+    public int MinArea { get; set; }
+    public int KernelSize { get; set; }
+}
+
+public class RefineResult
+{
+    public RefineParams Params { get; }
+    public bool[,] Mask { get; }
+    public double Metric { get; }
+    public RefineResult(RefineParams p, bool[,] mask, double metric)
+    {
+        Params = p;
+        Mask = mask;
+        Metric = metric;
+    }
+}
+
+public class RegionScore
+{
+    public int Label { get; }
+    public double Score { get; }
+    public Rect BoundingBox { get; }
+    public double Area { get; }
+    public RegionScore(int label, double score, Rect box, double area)
+    {
+        Label = label;
+        Score = score;
+        BoundingBox = box;
+        Area = area;
+    }
+}
+
 public static class ElaAdvanced
 {
-    static double[] FlattenMask(byte[,] mask)
-    {
-        int w = mask.GetLength(0);
-        int h = mask.GetLength(1);
-        var arr = new double[w * h];
-        int idx = 0;
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                arr[idx++] = mask[x, y] > 0 ? 1.0 : 0.0;
-        return arr;
-    }
-
-    static double[] FlattenEla(float[,] map)
-    {
-        int w = map.GetLength(0);
-        int h = map.GetLength(1);
-        var arr = new double[w * h];
-        int idx = 0;
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                arr[idx++] = map[x, y];
-        return arr;
-    }
-
     public static float[][,] ComputeMultiScaleElaMap(MagickImage img, int[] jpegQualities)
     {
         var maps = new float[jpegQualities.Length][,];
@@ -111,7 +121,7 @@ public static class ElaAdvanced
 
     public static bool[,] BinarizeElaMap(float[,] elaMap, double threshold) => ElaMetrics.BinarizeElaMap(elaMap, threshold);
 
-    public static bool[,] RefineMask(bool[,] rawMask, int minArea = 50)
+    public static bool[,] RefineMask(bool[,] rawMask, int minArea = 50, int kernelSize = 3)
     {
         int w = rawMask.GetLength(0);
         int h = rawMask.GetLength(1);
@@ -128,12 +138,12 @@ public static class ElaAdvanced
             int area = stats.Get<int>(i, (int)ConnectedComponentsTypes.Area);
             if (area < minArea)
             {
-        using var cmp = new Mat();
-        Cv2.Compare(labels, i, cmp, CmpType.EQ);
-        mat.SetTo(Scalar.All(0), cmp);
+                using var cmp = new Mat();
+                Cv2.Compare(labels, i, cmp, CmpType.EQ);
+                mat.SetTo(Scalar.All(0), cmp);
             }
         }
-        var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
+        var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(kernelSize, kernelSize));
         Cv2.MorphologyEx(mat, mat, MorphTypes.Close, kernel);
         Cv2.MorphologyEx(mat, mat, MorphTypes.Open, kernel);
         var result = new bool[w, h];
@@ -141,6 +151,121 @@ public static class ElaAdvanced
             for (int x = 0; x < w; x++)
                 result[x, y] = mat.Get<byte>(y, x) > 0;
         return result;
+    }
+
+    public static double ComputeSauvolaThreshold(float[,] elaMap, int windowSize, double k)
+    {
+        int w = elaMap.GetLength(0);
+        int h = elaMap.GetLength(1);
+        int r = windowSize / 2;
+        double R = 1.0;
+        double sumT = 0;
+        int count = 0;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                int x0 = Math.Max(0, x - r);
+                int x1 = Math.Min(w - 1, x + r);
+                int y0 = Math.Max(0, y - r);
+                int y1 = Math.Min(h - 1, y + r);
+                double m = 0, s = 0; int n = 0;
+                for (int yy = y0; yy <= y1; yy++)
+                    for (int xx = x0; xx <= x1; xx++)
+                    {
+                        double v = elaMap[xx, yy];
+                        m += v; n++;
+                    }
+                m /= Math.Max(1, n);
+                for (int yy = y0; yy <= y1; yy++)
+                    for (int xx = x0; xx <= x1; xx++)
+                        s += Math.Pow(elaMap[xx, yy] - m, 2);
+                s = Math.Sqrt(s / Math.Max(1, n));
+                double t = m * (1 + k * (s / R - 1));
+                sumT += t; count++;
+            }
+        }
+        return count == 0 ? 0 : sumT / count;
+    }
+
+    public static IEnumerable<double> SweepThresholds(float[,] elaMap, double tMin, double tMax, double step, Func<bool[,], double> metricFunc)
+    {
+        var scored = new List<(double thr, double score)>();
+        for (double t = tMin; t <= tMax; t += step)
+        {
+            var mask = BinarizeElaMap(elaMap, t);
+            double metric = metricFunc(mask);
+            scored.Add((t, metric));
+        }
+        return scored.OrderByDescending(s => s.score).Select(s => s.thr);
+    }
+
+    public static double[,] ComputeMultiBlockOtsu(float[,] elaMap, int blocksX, int blocksY)
+    {
+        int w = elaMap.GetLength(0);
+        int h = elaMap.GetLength(1);
+        var map = new double[blocksX, blocksY];
+        int bw = Math.Max(1, w / blocksX);
+        int bh = Math.Max(1, h / blocksY);
+        for (int by = 0; by < blocksY; by++)
+        {
+            for (int bx = 0; bx < blocksX; bx++)
+            {
+                int x0 = bx * bw;
+                int y0 = by * bh;
+                int x1 = bx == blocksX - 1 ? w : x0 + bw;
+                int y1 = by == blocksY - 1 ? h : y0 + bh;
+                var block = new float[x1 - x0, y1 - y0];
+                for (int yy = y0; yy < y1; yy++)
+                    for (int xx = x0; xx < x1; xx++)
+                        block[xx - x0, yy - y0] = elaMap[xx, yy];
+                map[bx, by] = ElaMetrics.ComputeOtsuThreshold(block);
+            }
+        }
+        return map;
+    }
+
+    public static IEnumerable<RefineResult> SweepMorphology(bool[,] rawMask, IEnumerable<RefineParams> paramSpace, Func<bool[,], double> metricFunc)
+    {
+        var results = new List<RefineResult>();
+        foreach (var p in paramSpace)
+        {
+            var refined = RefineMask(rawMask, p.MinArea, p.KernelSize);
+            double metric = metricFunc(refined);
+            results.Add(new RefineResult(p, refined, metric));
+        }
+        return results.OrderByDescending(r => r.Metric);
+    }
+
+    public static List<RegionScore> RankRegions(bool[,] mask, float[,] elaMap)
+    {
+        int w = mask.GetLength(0);
+        int h = mask.GetLength(1);
+        using var mat = new Mat(h, w, MatType.CV_8UC1);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                mat.Set(y, x, mask[x, y] ? (byte)255 : (byte)0);
+        using var labels = new Mat();
+        using var stats = new Mat();
+        using var cents = new Mat();
+        Cv2.ConnectedComponentsWithStats(mat, labels, stats, cents);
+        var list = new List<RegionScore>();
+        for (int i = 1; i < stats.Rows; i++)
+        {
+            int x = stats.Get<int>(i, (int)ConnectedComponentsTypes.Left);
+            int y = stats.Get<int>(i, (int)ConnectedComponentsTypes.Top);
+            int bw = stats.Get<int>(i, (int)ConnectedComponentsTypes.Width);
+            int bh = stats.Get<int>(i, (int)ConnectedComponentsTypes.Height);
+            int area = stats.Get<int>(i, (int)ConnectedComponentsTypes.Area);
+            double sum = 0;
+            for (int yy = y; yy < y + bh; yy++)
+                for (int xx = x; xx < x + bw; xx++)
+                    if (labels.Get<int>(yy, xx) == i)
+                        sum += elaMap[xx, yy];
+            double mean = area > 0 ? sum / area : 0;
+            list.Add(new RegionScore(i, mean, new Rect(x, y, bw, bh), area));
+        }
+        return list.OrderByDescending(r => r.Score).ToList();
     }
 
     public static double ComputeRocAucPixel(byte[,] gt, float[,] elaMap) =>
@@ -151,42 +276,11 @@ public static class ElaAdvanced
 
     public static double ComputeNss(byte[,] gt, float[,] elaMap) => ElaMetrics.ComputeNss(gt, elaMap);
 
-    public static double ComputeFprAtTpr(byte[,] gt, float[,] elaMap, double tprTarget)
-    {
-        var labels = FlattenMask(gt);
-        var scores = FlattenEla(elaMap);
-        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score).ToArray();
-        double pos = labels.Count(l => l > 0.5);
-        double neg = labels.Length - pos;
-        double tp = 0, fp = 0;
-        foreach (var p in pairs)
-        {
-            if (p.Label > 0.5) tp++; else fp++;
-            double tpr = tp / pos;
-            if (tpr >= tprTarget)
-                return fp / neg;
-        }
-        return 1.0;
-    }
+    public static double ComputeFprAtTpr(byte[,] gt, float[,] elaMap, double tprTarget) =>
+        ElaMetrics.ComputeFprAtTpr(gt, elaMap, tprTarget);
 
-    public static double ComputeAveragePrecision(byte[,] gt, float[,] scoresMap)
-    {
-        var labels = FlattenMask(gt);
-        var scores = FlattenEla(scoresMap);
-        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score).ToArray();
-        double pos = labels.Count(l => l > 0.5);
-        double tp = 0, fp = 0;
-        double ap = 0, prevRecall = 0;
-        foreach (var p in pairs)
-        {
-            if (p.Label > 0.5) tp++; else fp++;
-            double recall = tp / pos;
-            double precision = tp / (tp + fp);
-            ap += precision * (recall - prevRecall);
-            prevRecall = recall;
-        }
-        return ap;
-    }
+    public static double ComputeAveragePrecision(byte[,] gt, float[,] scoresMap) =>
+        ElaMetrics.ComputeAveragePrecision(gt, scoresMap);
 
     public static double ComputeRegionIoU(byte[,] gt, bool[,] predMask)
     {

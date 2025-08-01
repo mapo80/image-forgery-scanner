@@ -291,6 +291,45 @@ public static class ElaMetrics
         return (rho, p);
     }
 
+    public static double ComputeFprAtTpr(byte[,] mask, float[,] elaMap, double tprTarget)
+    {
+        var labels = FlattenMask(mask);
+        var scores = FlattenEla(elaMap);
+        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l))
+            .OrderByDescending(p => p.Score).ToArray();
+        double pos = labels.Count(l => l > 0.5);
+        double neg = labels.Length - pos;
+        double tp = 0, fp = 0;
+        foreach (var p in pairs)
+        {
+            if (p.Label > 0.5) tp++; else fp++;
+            double tpr = tp / pos;
+            if (tpr >= tprTarget)
+                return fp / neg;
+        }
+        return 1.0;
+    }
+
+    public static double ComputeAveragePrecision(byte[,] mask, float[,] scoresMap)
+    {
+        var labels = FlattenMask(mask);
+        var scores = FlattenEla(scoresMap);
+        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l))
+            .OrderByDescending(p => p.Score).ToArray();
+        double pos = labels.Count(l => l > 0.5);
+        double tp = 0, fp = 0;
+        double ap = 0, prevRecall = 0;
+        foreach (var p in pairs)
+        {
+            if (p.Label > 0.5) tp++; else fp++;
+            double recall = tp / pos;
+            double precision = tp / (tp + fp);
+            ap += precision * (recall - prevRecall);
+            prevRecall = recall;
+        }
+        return ap;
+    }
+
     public static double ComputeOtsuThreshold(float[,] elaMap)
     {
         int w = elaMap.GetLength(0);
