@@ -1,7 +1,6 @@
 @page "/"
 
 @inject HttpClient Http
-@inject NavigationManager Navigation
 
 <PageTitle>Analisi immagine</PageTitle>
 
@@ -282,11 +281,6 @@
     private string? copyMoveMap;
     private string? splicingMap;
     private string? inpaintingMap;
-
-    protected override void OnInitialized()
-    {
-        Http.BaseAddress = new Uri(Navigation.BaseUri);
-    }
 
     private void OnFileChange(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e) => image = e.File;
 
