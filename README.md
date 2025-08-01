@@ -181,14 +181,14 @@ dotnet run --project ImageForensic.Api/ImageForensic.Api.csproj
 ```
 
 ### Endpoint `/analyze`
-Richiede una richiesta `POST` `multipart/form-data` contenente il file da analizzare nel campo `image`. Eventuali parametri di `ForensicsOptions` possono essere passati come altri campi del form; i percorsi dei file generati sono gestiti internamente creando una cartella temporanea per ogni richiesta. Esempio:
+Richiede una richiesta `POST` `multipart/form-data` contenente il file da analizzare nel campo `image`. Eventuali parametri di `AnalyzeImageOptions` possono essere passati come altri campi del form; i percorsi dei file generati sono gestiti internamente creando una cartella temporanea per ogni richiesta. Esempio:
 ```bash
 curl -F "image=@percorso/dell/immagine.jpg" http://localhost:5000/analyze
 ```
-La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate come array di byte e verdetto. La documentazione Swagger è disponibile all'indirizzo `/swagger`.
+La risposta è un oggetto `AnalyzeImageResult` con punteggi, mappe generate come array di byte e verdetto. La documentazione Swagger è disponibile all'indirizzo `/swagger`.
 
 ### Parametri principali
-`ForensicsOptions` espone diversi parametri regolabili:
+`AnalyzeImageOptions` espone diversi parametri regolabili:
 
 | Property | Description | Default |
 |--------------------------|----------------------------------------------------------|--------:|
@@ -209,7 +209,7 @@ La risposta è un oggetto `ForensicsResult` con punteggi, mappe generate come ar
 | `TamperedThreshold` | Score above this value is considered `Tampered` | `0.8` |
 
 
-`ForensicsResult` restituisce i valori seguenti:
+`AnalyzeImageResult` restituisce i valori seguenti:
 
 | Field | Meaning |
 |--------------------|------------------------------------------------------------|
@@ -286,7 +286,7 @@ dotnet test ImageForensic.Api.Tests/ImageForensic.Api.Tests.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-08-01 06:41 UTC** – superati `TestOpenCvSharp` (2 test), `ImageForensic.Api.Tests` (4 test) e `ImageForensics.Tests` (46 test).
+Ultima esecuzione test: **2025-08-01 08:37 UTC** – superati `ImageForensic.Api.Tests` (4 test), `TestOpenCvSharp` (2 test) e `ImageForensics.Tests` (46 test).
 
 ### Riepilogo test
 

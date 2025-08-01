@@ -35,7 +35,7 @@ public class DatasetImageTests
         {
             var result = await analyzer.AnalyzeAsync(GetDatasetImagePath(), options);
             Assert.NotNull(result);
-            Assert.NotEmpty(result.ElaMap);
+            Assert.True(File.Exists(result.ElaMapPath));
         }
         finally
         {
@@ -57,7 +57,7 @@ public class DatasetImageTests
 
         var response = await client.PostAsync("/analyze", content);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<ForensicsResult>();
+        var result = await response.Content.ReadFromJsonAsync<AnalyzeImageResult>();
         Assert.NotNull(result);
         Assert.NotEmpty(result!.ElaMap);
     }

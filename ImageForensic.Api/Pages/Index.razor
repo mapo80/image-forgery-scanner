@@ -274,8 +274,8 @@
 }
 
 @code {
-    private ForensicsOptionsForm model = new();
-    private ForensicsResult? result;
+    private AnalyzeImageOptionsForm model = new();
+    private AnalyzeImageResult? result;
     private Microsoft.AspNetCore.Components.Forms.IBrowserFile? image;
     private string? elaMap;
     private string? copyMoveMap;
@@ -339,7 +339,7 @@
         var response = await Http.PostAsync("/analyze", content);
         if (response.IsSuccessStatusCode)
         {
-            result = await response.Content.ReadFromJsonAsync<ForensicsResult>();
+            result = await response.Content.ReadFromJsonAsync<AnalyzeImageResult>();
             elaMap = Convert.ToBase64String(result!.ElaMap);
             copyMoveMap = Convert.ToBase64String(result.CopyMoveMask);
             splicingMap = Convert.ToBase64String(result.SplicingMap);
@@ -347,7 +347,7 @@
         }
     }
 
-    private record ForensicsOptionsForm
+    private record AnalyzeImageOptionsForm
     {
         [Required] public int ElaQuality { get; set; } = 75;
         [Required] public int CopyMoveFeatureCount { get; set; } = 5000;
@@ -367,11 +367,11 @@
         [Required] public double TamperedThreshold { get; set; } = 0.8;
         [Required] public int MaxParallelChecks { get; set; } = 1;
 
-        public ForensicsOptions ToOptions(string checks)
+        public AnalyzeImageOptions ToOptions(string checks)
         {
             var enabled = checks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                  .Aggregate(ForensicsCheck.None, (a, c) => a | Enum.Parse<ForensicsCheck>(c, true));
-            return new ForensicsOptions
+            return new AnalyzeImageOptions
             {
                 ElaQuality = ElaQuality,
                 CopyMoveFeatureCount = CopyMoveFeatureCount,
