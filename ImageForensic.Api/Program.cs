@@ -18,7 +18,7 @@ builder.Services.AddAntDesign();
 // Register an HttpClient that points to the app's base URI so that
 // Razor components can issue relative HTTP requests without errors.
 builder.Services.AddHttpClient();
-builder.Services.AddScoped(sp =>
+builder.Services.AddScoped<HttpClient>(sp =>
 {
     var navigationManager = sp.GetRequiredService<NavigationManager>();
     return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
