@@ -38,6 +38,12 @@ namespace ImageForensics.Core.Algorithms
             if (!Directory.Exists(mapDir))
                 Directory.CreateDirectory(mapDir);
 
+            if (!File.Exists(modelPath))
+            {
+                Log.Warning("Splicing model not found: {ModelPath}", modelPath);
+                return (0d, string.Empty);
+            }
+
             var sw = Stopwatch.StartNew();
             Log.Information("Splicing analysis for {Image}", imagePath);
 
