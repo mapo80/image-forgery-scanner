@@ -2,6 +2,10 @@
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble AS base
+# Install dependencies required by OpenCvSharp
+RUN apt-get update \
+    && apt-get install -y libgtk2.0-0 libgdk-pixbuf2.0-0 libtesseract5 libdc1394-25 libavcodec60 libavformat60 libswscale7 libsm6 libxext6 libxrender1 libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -26,4 +30,5 @@ RUN dotnet publish "./ImageForensic.Api.csproj" -c $BUILD_CONFIGURATION -o /app/
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY ["so/libOpenCvSharpExtern.so", "/usr/lib/"]
 ENTRYPOINT ["dotnet", "ImageForensic.Api.dll"]
