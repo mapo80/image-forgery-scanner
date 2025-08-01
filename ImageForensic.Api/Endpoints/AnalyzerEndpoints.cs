@@ -18,8 +18,11 @@ public static class AnalyzerEndpoints
               .DisableAntiforgery();
     }
 
-    internal static async Task<IResult> AnalyzeImage(IFormFile image, [FromForm] AnalyzeImageOptions? options, IForensicsAnalyzer analyzer)
+    internal static async Task<IResult> AnalyzeImage(IFormFile? image, [FromForm] AnalyzeImageOptions? options, IForensicsAnalyzer analyzer)
     {
+        if (image is null)
+            return Results.BadRequest("Missing image");
+
         options ??= new AnalyzeImageOptions();
 
         var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}{Path.GetExtension(image.FileName)}");
@@ -38,8 +41,8 @@ public static class AnalyzerEndpoints
             SplicingMapDir = workDir,
             NoiseprintMapDir = workDir,
             MetadataMapDir = workDir,
-            SplicingModelPath = "mantranet_256x256.onnx",
-            NoiseprintModelsDir = "ImageForensics/src/Models/onnx/noiseprint",
+            SplicingModelPath = "Models/onnx/mantranet_256x256.onnx",
+            NoiseprintModelsDir = "Models/onnx/noiseprint",
             SplicingInputWidth = 256,
             SplicingInputHeight = 256,
             NoiseprintInputSize = 320

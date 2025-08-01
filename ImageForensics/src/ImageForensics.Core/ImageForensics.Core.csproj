@@ -18,66 +18,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="Plotly.NET.CSharp" Version="0.13.0" />
     <PackageReference Include="FSharp.Core" Version="8.0.403" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\Models\onnx\noiseprint\*.onnx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="..\Models\onnx\noiseprint\model_qf100.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf101.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf51.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf52.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf53.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf54.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf55.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf56.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf57.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf58.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf59.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf60.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf61.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf62.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf63.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf64.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf65.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf66.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf67.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf68.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf69.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf70.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf71.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf72.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf73.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf74.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf75.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf76.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf77.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf78.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf79.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf80.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf81.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf82.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf83.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf84.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf85.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf86.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf87.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf88.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf89.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf90.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf91.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf92.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf93.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf94.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf95.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf96.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf97.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf98.onnx" />
-    <None Remove="..\Models\onnx\noiseprint\model_qf99.onnx" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using ImageForensic.Api;
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
 using Microsoft.AspNetCore.Http;
@@ -21,14 +22,14 @@ public class AnalyzerEndpointsTests
         var expected = new ForensicsResult(0.1, elaPath, 0.2, maskPath)
         { Verdict = "ok" };
         var mock = new Mock<IForensicsAnalyzer>();
-        var options = new AnalyzeImageOptions();
+        var options = new ImageForensic.Api.AnalyzeImageOptions();
         mock.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<ForensicsOptions>()))
             .ReturnsAsync(expected);
 
         await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
         var file = new FormFile(stream, 0, stream.Length, "image", "img.jpg");
-        var result = await AnalyzerEndpoints.AnalyzeImage(file, options, mock.Object);
-        var ok = Assert.IsType<Ok<AnalyzeImageResult>>(result);
+        var result = await ImageForensic.Api.AnalyzerEndpoints.AnalyzeImage(file, options, mock.Object);
+        var ok = Assert.IsType<Ok<ImageForensic.Api.AnalyzeImageResult>>(result);
         var actual = ok.Value!;
         Assert.Equal(expected.ElaScore, actual.ElaScore);
         Assert.Equal(expected.CopyMoveScore, actual.CopyMoveScore);

@@ -2,8 +2,14 @@ using System;
 using System.Globalization;
 using ImageForensic.Api;
 using ImageForensics.Core;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -26,5 +32,7 @@ app.MapAnalyzerEndpoints();
 app.MapRazorPages();
 
 app.Run();
+
+Log.CloseAndFlush();
 
 public partial class Program { }

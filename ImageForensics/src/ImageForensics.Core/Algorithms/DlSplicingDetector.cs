@@ -8,6 +8,7 @@ using OpenCvSharp;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System.Diagnostics;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms
 {
@@ -37,13 +38,22 @@ namespace ImageForensics.Core.Algorithms
             if (!Directory.Exists(mapDir))
                 Directory.CreateDirectory(mapDir);
 
+            if (!File.Exists(modelPath))
+            {
+                Log.Warning("Splicing model not found: {ModelPath}", modelPath);
+                return (0d, string.Empty);
+            }
+
             var sw = Stopwatch.StartNew();
+            Log.Information("Splicing analysis for {Image}", imagePath);
 
             // 1) Load & preprocess
             Mat img = Cv2.ImRead(imagePath, ImreadModes.Color);
             int origW = img.Cols;
             int origH = img.Rows;
+            Log.Debug("Loaded image {Width}x{Height}", origW, origH);
             Cv2.Resize(img, img, new Size(inputW, inputH));
+            Log.Debug("Resized image to {Width}x{Height}", inputW, inputH);
             img.ConvertTo(img, MatType.CV_32FC3, 1 / 255.0);
             Cv2.CvtColor(img, img, ColorConversionCodes.BGR2RGB);
 
@@ -51,6 +61,7 @@ namespace ImageForensics.Core.Algorithms
             var data = new float[inputW * inputH * 3];
             Marshal.Copy(img.Data, data, 0, data.Length);
             var tensor = new DenseTensor<float>(data, new[] { 1, inputH, inputW, 3 });
+            Log.Debug("Tensor created with shape {Shape}", string.Join("x", tensor.Dimensions.ToArray()));
 
             // 3) Inference
             var session = SessionCache.GetOrAdd(modelPath, p => new InferenceSession(p));
@@ -58,7 +69,9 @@ namespace ImageForensics.Core.Algorithms
             {
                 NamedOnnxValue.CreateFromTensor("img_in", tensor)
             };
+            Log.Debug("Running ONNX inference with model {Model}", modelPath);
             using var results = session.Run(inputs);
+            Log.Debug("Inference completed");
             var output = results.First().AsTensor<float>().ToArray();
 
             // 4) Post‑process
@@ -71,11 +84,11 @@ namespace ImageForensics.Core.Algorithms
             string baseName = Path.GetFileNameWithoutExtension(imagePath);
             string outPath  = Path.Combine(mapDir, $"{baseName}_splicing.png");
             Cv2.ImWrite(outPath, heat);
+            Log.Debug("Heatmap written to {OutPath}", outPath);
 
             sw.Stop();
-            Console.WriteLine($"Splicing detection time for {baseName}: {sw.ElapsedMilliseconds} ms");
-
             double score = Cv2.Mean(heat)[0] / 255.0;
+            Log.Information("Splicing completed for {Image} in {Elapsed} ms: {Score}", imagePath, sw.ElapsedMilliseconds, score);
             return (score, outPath);
         }
     }
