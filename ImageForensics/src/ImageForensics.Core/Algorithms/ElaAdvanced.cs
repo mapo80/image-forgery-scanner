@@ -16,7 +16,7 @@ public record FeatureVector(
     float LocalVar
 );
 
-public class RefineParams
+public struct RefineParams
 {
     public int MinArea { get; set; }
     public int KernelSize { get; set; }
@@ -52,7 +52,7 @@ public class RegionScore
 
 public static class ElaAdvanced
 {
-    static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90)
+    public static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90)
     {
         using var comp = img.Clone();
         comp.Quality = jpegQuality;

@@ -1,0 +1,2 @@
+Fold,Threshold,MinArea,KernelSize,MeanIoU,MeanDice,MeanMCC,StdIoU,StdDice,StdMCC
+1,0.10,50,3,0.157,0.228,0.212,0.205,0.254,0.230

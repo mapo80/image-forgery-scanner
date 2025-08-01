@@ -536,3 +536,25 @@ dotnet run --project ImageForensics/src/ElaMetrics.Cli -- dataset/imd2020
 ```
 The command produces `ela-advanced-metrics.csv` and an interactive `ela-advanced-report.html` inside the dataset directory.
 
+## Cross-Validation
+
+To search thresholds and morphology parameters via k-fold validation:
+
+```bash
+dotnet run --project ElaSegmentation.Cmd \
+  --imagesDir ./dataset/imd2020/images/tampered \
+  --masksDir ./dataset/imd2020/images/mask \
+  --folds 5 \
+  --thresholds 0.01,0.05,0.10,0.15,0.20 \
+  --minAreas 50,100,200 \
+  --kernelSizes 3,5,7 \
+  --outputCsv cv_results.csv \
+  --outputHtml cv_report.html
+```
+
+`cv_results.csv` and `cv_report.html` may be versioned. Avoid committing raw images; convert them to Base64 if needed.
+
+| Fold | Threshold | MinArea | KernelSize | MeanIoU | MeanDice | MeanMCC | StdIoU | StdDice | StdMCC |
+|------|-----------|---------|------------|--------|---------|--------|-------|--------|-------|
+| 1 | 0.10 | 50 | 3 | 0.16 | 0.23 | 0.21 | 0.21 | 0.25 | 0.23 |
+
