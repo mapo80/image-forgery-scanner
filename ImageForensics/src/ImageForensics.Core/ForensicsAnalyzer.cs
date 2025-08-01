@@ -59,10 +59,18 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Ela))
         {
             Log.Information("Running ELA check");
-            elaTask = RunAsync(
-                () => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality),
-                (0d, string.Empty),
-                "ELA");
+            try
+            {
+                elaTask = RunAsync(
+                    () => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality),
+                    (0d, string.Empty),
+                    "ELA");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "ELA check failed to start");
+                errors["ELA"] = ex.Message;
+            }
         }
 
         Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
@@ -70,16 +78,24 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             Directory.CreateDirectory(options.CopyMoveMaskDir);
             Log.Information("Running Copy-Move check");
-            cmTask = RunAsync(
-                () => CopyMoveDetector.Analyze(
-                    imagePath,
-                    options.CopyMoveMaskDir,
-                    options.CopyMoveFeatureCount,
-                    options.CopyMoveMatchDistance,
-                    options.CopyMoveRansacReproj,
-                    options.CopyMoveRansacProb),
-                (0d, string.Empty),
-                "Copy-Move");
+            try
+            {
+                cmTask = RunAsync(
+                    () => CopyMoveDetector.Analyze(
+                        imagePath,
+                        options.CopyMoveMaskDir,
+                        options.CopyMoveFeatureCount,
+                        options.CopyMoveMatchDistance,
+                        options.CopyMoveRansacReproj,
+                        options.CopyMoveRansacProb),
+                    (0d, string.Empty),
+                    "Copy-Move");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Copy-Move check failed to start");
+                errors["Copy-Move"] = ex.Message;
+            }
         }
 
         Task<(double, string)> spTask = Task.FromResult((0d, string.Empty));
@@ -87,30 +103,38 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             Directory.CreateDirectory(options.SplicingMapDir);
             Log.Information("Running Splicing check");
-            spTask = RunAsync(() =>
+            try
             {
-                string modelPath = options.SplicingModelPath;
+                spTask = RunAsync(() =>
+                {
+                    string modelPath = options.SplicingModelPath;
 
-                Log.Information("Mantranet model path: {ModelPath}", modelPath);
+                    Log.Information("Mantranet model path: {ModelPath}", modelPath);
 
-                // if (!Path.IsPathRooted(modelPath))
-                // {
-                //     if (!File.Exists(modelPath))
-                //         modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
-                //     if (!File.Exists(modelPath))
-                //         modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                //             "..", "..", "..", "..", "..", "..", modelPath));
-                // }
+                    // if (!Path.IsPathRooted(modelPath))
+                    // {
+                    //     if (!File.Exists(modelPath))
+                    //         modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
+                    //     if (!File.Exists(modelPath))
+                    //         modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                    //             "..", "..", "..", "..", "..", "..", modelPath));
+                    // }
 
-                Log.Information("Mantranet model path: {ModelPath}", modelPath);
+                    Log.Information("Mantranet model path: {ModelPath}", modelPath);
 
-                return DlSplicingDetector.AnalyzeSplicing(
-                    imagePath,
-                    options.SplicingMapDir,
-                    modelPath,
-                    options.SplicingInputWidth,
-                    options.SplicingInputHeight);
-            }, (0d, string.Empty), "Splicing");
+                    return DlSplicingDetector.AnalyzeSplicing(
+                        imagePath,
+                        options.SplicingMapDir,
+                        modelPath,
+                        options.SplicingInputWidth,
+                        options.SplicingInputHeight);
+                }, (0d, string.Empty), "Splicing");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Splicing check failed to start");
+                errors["Splicing"] = ex.Message;
+            }
         }
 
         Task<(double, string)> ipTask = Task.FromResult((0d, string.Empty));
@@ -118,21 +142,29 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             Directory.CreateDirectory(options.NoiseprintMapDir);
             Log.Information("Running Inpainting check");
-            ipTask = RunAsync(() =>
+            try
             {
-                string modelsDir = options.NoiseprintModelsDir;
+                ipTask = RunAsync(() =>
+                {
+                    string modelsDir = options.NoiseprintModelsDir;
 
-                Log.Information("Noiseprint models directory: {ModelsDir}", modelsDir);
+                    Log.Information("Noiseprint models directory: {ModelsDir}", modelsDir);
 
-                if (!Directory.Exists(modelsDir))
-                    throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
+                    if (!Directory.Exists(modelsDir))
+                        throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
 
-                return NoiseprintSdkWrapper.Run(
-                    imagePath,
-                    options.NoiseprintMapDir,
-                    modelsDir,
-                    options.NoiseprintInputSize);
-            }, (0d, string.Empty), "Inpainting");
+                    return NoiseprintSdkWrapper.Run(
+                        imagePath,
+                        options.NoiseprintMapDir,
+                        modelsDir,
+                        options.NoiseprintInputSize);
+                }, (0d, string.Empty), "Inpainting");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Inpainting check failed to start");
+                errors["Inpainting"] = ex.Message;
+            }
         }
 
         Task<(double, IReadOnlyDictionary<string, string?>)> exifTask =
@@ -142,12 +174,20 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             Directory.CreateDirectory(options.MetadataMapDir);
             Log.Information("Running EXIF check");
-            exifTask = RunAsync(() => ExifChecker.Analyze(
-                imagePath,
-                options.MetadataMapDir,
-                options.ExpectedCameraModels),
-                (0d, new Dictionary<string, string?>()),
-                "EXIF");
+            try
+            {
+                exifTask = RunAsync(() => ExifChecker.Analyze(
+                    imagePath,
+                    options.MetadataMapDir,
+                    options.ExpectedCameraModels),
+                    (0d, new Dictionary<string, string?>()),
+                    "EXIF");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "EXIF check failed to start");
+                errors["EXIF"] = ex.Message;
+            }
         }
 
         try
