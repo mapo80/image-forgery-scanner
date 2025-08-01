@@ -34,6 +34,8 @@ public static class NoiseprintSdkWrapper
             qf = 101;
         }
 
+        Log.Information("Using model {Model} for quality factor {Qf}", modelPath, qf);
+
         // Cache delle sessioni ONNX gestita da NoisePrintSdk
         _lastQf = qf;
 

@@ -89,14 +89,19 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             spTask = RunAsync(() =>
             {
                 string modelPath = options.SplicingModelPath;
-                if (!Path.IsPathRooted(modelPath))
-                {
-                    if (!File.Exists(modelPath))
-                        modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
-                    if (!File.Exists(modelPath))
-                        modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                            "..", "..", "..", "..", "..", "..", modelPath));
-                }
+
+                Log.Information("Mantranet model path: {ModelPath}", modelPath);
+
+                // if (!Path.IsPathRooted(modelPath))
+                // {
+                //     if (!File.Exists(modelPath))
+                //         modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
+                //     if (!File.Exists(modelPath))
+                //         modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                //             "..", "..", "..", "..", "..", "..", modelPath));
+                // }
+
+                Log.Information("Mantranet model path: {ModelPath}", modelPath);
 
                 return DlSplicingDetector.AnalyzeSplicing(
                     imagePath,

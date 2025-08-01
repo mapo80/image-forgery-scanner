@@ -15,6 +15,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0-noble AS build
 ARG BUILD_CONFIGURATION=Release
 
 WORKDIR /src
+COPY ["ImageForensics/", "ImageForensics/"]
 COPY ["ImageForensic.Api/ImageForensic.Api.csproj", "ImageForensic.Api/"]
 
 # specifichiamo il RID linux-x64 già in fase di restore
