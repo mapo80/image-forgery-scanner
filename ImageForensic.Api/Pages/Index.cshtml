@@ -11,6 +11,24 @@
 <body class="bg-light">
 <div class="container py-5">
     <h1 class="mb-4 text-center">Analisi immagine</h1>
+    <div class="mb-4">
+        <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#soglieDefault" aria-expanded="false" aria-controls="soglieDefault">
+            Mostra valori soglia di default
+        </button>
+        <div class="collapse mt-2" id="soglieDefault">
+            <div class="card card-body">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr><th>Tipo</th><th>Valore</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Soglia pulita</td><td>@Model.DefaultCleanThreshold</td></tr>
+                        <tr><td>Soglia manomessa</td><td>@Model.DefaultTamperedThreshold</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
     <form method="post" enctype="multipart/form-data" class="mb-5">
         <div class="mb-3">
             <label class="form-label" asp-for="Image">Immagine</label>
@@ -28,7 +46,7 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header">Controllo Copy-Move</div>
+            <div class="card-header">Controllo copia e sposta</div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.CopyMoveFeatureCount"></label>
@@ -50,7 +68,7 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header">Controllo Splicing</div>
+            <div class="card-header">Controllo giunzione</div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.SplicingInputWidth"></label>
@@ -64,7 +82,7 @@
         </div>
 
         <div class="card mb-3">
-            <div class="card-header">Controllo Noiseprint</div>
+            <div class="card-header">Controllo impronta di rumore</div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.NoiseprintInputSize"></label>
@@ -146,22 +164,56 @@
     {
         <div class="alert alert-info">
             <h2>Risultato: @Model.Result.Verdict</h2>
-            <p>Punteggio totale: @Model.Result.TotalScore.ToString("F2")</p>
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr><th>Punteggio totale</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>@Model.Result.TotalScore.ToString("F2")</td>
+                        <td>@Model.Options.CleanThreshold</td>
+                        <td>@Model.Options.TamperedThreshold</td>
+                        <td>@Model.SpiegaPunteggio(Model.Result.TotalScore)</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header">ELA (@Model.Result.ElaScore.ToString("F2"))</div>
+                    <div class="card-header">ELA</div>
                     <div class="card-body">
-                        <img class="img-fluid" src="data:image/png;base64,@Model.ElaMapBase64" alt="Mappa ELA" />
+                        <table class="table table-sm">
+                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>@Model.Result.ElaScore.ToString("F2")</td>
+                                    <td>@Model.Options.CleanThreshold</td>
+                                    <td>@Model.Options.TamperedThreshold</td>
+                                    <td>@Model.SpiegaPunteggio(Model.Result.ElaScore)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <img class="img-fluid mt-2" src="data:image/png;base64,@Model.ElaMapBase64" alt="Mappa ELA" />
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header">Copy-Move (@Model.Result.CopyMoveScore.ToString("F2"))</div>
+                    <div class="card-header">Copia e sposta</div>
                     <div class="card-body">
-                        <img class="img-fluid" src="data:image/png;base64,@Model.CopyMoveMapBase64" alt="Copy-Move" />
+                        <table class="table table-sm">
+                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>@Model.Result.CopyMoveScore.ToString("F2")</td>
+                                    <td>@Model.Options.CleanThreshold</td>
+                                    <td>@Model.Options.TamperedThreshold</td>
+                                    <td>@Model.SpiegaPunteggio(Model.Result.CopyMoveScore)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <img class="img-fluid mt-2" src="data:image/png;base64,@Model.CopyMoveMapBase64" alt="Mappa copia e sposta" />
                     </div>
                 </div>
             </div>
@@ -169,9 +221,20 @@
             {
                 <div class="col-md-6">
                     <div class="card h-100">
-                        <div class="card-header">Splicing (@Model.Result.SplicingScore.ToString("F2"))</div>
+                        <div class="card-header">Giunzione</div>
                         <div class="card-body">
-                            <img class="img-fluid" src="data:image/png;base64,@Model.SplicingMapBase64" alt="Splicing" />
+                            <table class="table table-sm">
+                                <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>@Model.Result.SplicingScore.ToString("F2")</td>
+                                        <td>@Model.Options.CleanThreshold</td>
+                                        <td>@Model.Options.TamperedThreshold</td>
+                                        <td>@Model.SpiegaPunteggio(Model.Result.SplicingScore)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <img class="img-fluid mt-2" src="data:image/png;base64,@Model.SplicingMapBase64" alt="Mappa giunzione" />
                         </div>
                     </div>
                 </div>
@@ -180,29 +243,54 @@
             {
                 <div class="col-md-6">
                     <div class="card h-100">
-                        <div class="card-header">Inpainting (@Model.Result.InpaintingScore.ToString("F2"))</div>
+                        <div class="card-header">Riempimento</div>
                         <div class="card-body">
-                            <img class="img-fluid" src="data:image/png;base64,@Model.InpaintingMapBase64" alt="Inpainting" />
+                            <table class="table table-sm">
+                                <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>@Model.Result.InpaintingScore.ToString("F2")</td>
+                                        <td>@Model.Options.CleanThreshold</td>
+                                        <td>@Model.Options.TamperedThreshold</td>
+                                        <td>@Model.SpiegaPunteggio(Model.Result.InpaintingScore)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <img class="img-fluid mt-2" src="data:image/png;base64,@Model.InpaintingMapBase64" alt="Mappa riempimento" />
                         </div>
                     </div>
                 </div>
             }
-            @if (Model.Result.ExifAnomalies.Count > 0)
-            {
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">EXIF (@Model.Result.ExifScore.ToString("F2"))</div>
-                        <div class="card-body">
-                            <ul class="mb-0">
-                            @foreach (var kv in Model.Result.ExifAnomalies)
-                            {
-                                <li>@kv.Key: @kv.Value</li>
-                            }
-                            </ul>
-                        </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">EXIF</div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-3">
+                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>@Model.Result.ExifScore.ToString("F2")</td>
+                                    <td>@Model.Options.CleanThreshold</td>
+                                    <td>@Model.Options.TamperedThreshold</td>
+                                    <td>@Model.SpiegaPunteggio(Model.Result.ExifScore)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        @if (Model.Result.ExifAnomalies.Count > 0)
+                        {
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Campo</th><th>Valore</th></tr></thead>
+                                <tbody>
+                                @foreach (var kv in Model.Result.ExifAnomalies)
+                                {
+                                    <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+                                }
+                                </tbody>
+                            </table>
+                        }
                     </div>
                 </div>
-            }
+            </div>
         </div>
     }
 </div>
