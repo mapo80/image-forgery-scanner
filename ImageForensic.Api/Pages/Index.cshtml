@@ -5,130 +5,207 @@
 <head>
     <meta charset="utf-8" />
     <title>Analisi immagine</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/css/site.css" />
 </head>
-<body>
-<h1>Analisi immagine</h1>
-
-<form method="post" enctype="multipart/form-data">
-    <div>
-        <label asp-for="Image">Immagine</label>
-        <input asp-for="Image" type="file" />
-    </div>
-
-    <fieldset>
-        <legend>Controllo ELA</legend>
-        <label asp-for="Options.ElaQuality"></label>
-        <input asp-for="Options.ElaQuality" type="number" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Controllo Copy-Move</legend>
-        <label asp-for="Options.CopyMoveFeatureCount"></label>
-        <input asp-for="Options.CopyMoveFeatureCount" type="number" />
-        <label asp-for="Options.CopyMoveMatchDistance"></label>
-        <input asp-for="Options.CopyMoveMatchDistance" type="number" step="0.1" />
-        <label asp-for="Options.CopyMoveRansacReproj"></label>
-        <input asp-for="Options.CopyMoveRansacReproj" type="number" step="0.1" />
-        <label asp-for="Options.CopyMoveRansacProb"></label>
-        <input asp-for="Options.CopyMoveRansacProb" type="number" step="0.01" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Controllo Splicing</legend>
-        <label asp-for="Options.SplicingInputWidth"></label>
-        <input asp-for="Options.SplicingInputWidth" type="number" />
-        <label asp-for="Options.SplicingInputHeight"></label>
-        <input asp-for="Options.SplicingInputHeight" type="number" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Controllo Noiseprint</legend>
-        <label asp-for="Options.NoiseprintInputSize"></label>
-        <input asp-for="Options.NoiseprintInputSize" type="number" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Metadati</legend>
-        <label asp-for="Options.ExpectedCameraModels"></label>
-        <input asp-for="Options.ExpectedCameraModels" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Pesi</legend>
-        <label asp-for="Options.ElaWeight"></label>
-        <input asp-for="Options.ElaWeight" type="number" step="0.1" />
-        <label asp-for="Options.CopyMoveWeight"></label>
-        <input asp-for="Options.CopyMoveWeight" type="number" step="0.1" />
-        <label asp-for="Options.SplicingWeight"></label>
-        <input asp-for="Options.SplicingWeight" type="number" step="0.1" />
-        <label asp-for="Options.InpaintingWeight"></label>
-        <input asp-for="Options.InpaintingWeight" type="number" step="0.1" />
-        <label asp-for="Options.ExifWeight"></label>
-        <input asp-for="Options.ExifWeight" type="number" step="0.1" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Soglie</legend>
-        <label asp-for="Options.CleanThreshold"></label>
-        <input asp-for="Options.CleanThreshold" type="number" step="0.01" />
-        <label asp-for="Options.TamperedThreshold"></label>
-        <input asp-for="Options.TamperedThreshold" type="number" step="0.01" />
-    </fieldset>
-
-    <fieldset>
-        <legend>Altre opzioni</legend>
-        <label asp-for="Options.EnabledChecks"></label>
-        <input asp-for="Options.EnabledChecks" />
-        <label asp-for="Options.MaxParallelChecks"></label>
-        <input asp-for="Options.MaxParallelChecks" type="number" />
-    </fieldset>
-
-    <button type="submit">Analizza</button>
-</form>
-
-@if (Model.Result != null)
-{
-    <h2>Risultato: @Model.Result.Verdict</h2>
-    <p>Punteggio totale: @Model.Result.TotalScore.ToString("F2")</p>
-    <div>
-        <h3>ELA</h3>
-        <p>Punteggio: @Model.Result.ElaScore.ToString("F2")</p>
-        <img src="data:image/png;base64,@Model.ElaMapBase64" alt="Mappa ELA" />
-    </div>
-    <div>
-        <h3>Copy-Move</h3>
-        <p>Punteggio: @Model.Result.CopyMoveScore.ToString("F2")</p>
-        <img src="data:image/png;base64,@Model.CopyMoveMapBase64" alt="Copy-Move" />
-    </div>
-    @if (!string.IsNullOrEmpty(Model.SplicingMapBase64))
-    {
-        <div>
-            <h3>Splicing</h3>
-            <p>Punteggio: @Model.Result.SplicingScore.ToString("F2")</p>
-            <img src="data:image/png;base64,@Model.SplicingMapBase64" alt="Splicing" />
+<body class="bg-light">
+<div class="container py-5">
+    <h1 class="mb-4 text-center">Analisi immagine</h1>
+    <form method="post" enctype="multipart/form-data" class="mb-5">
+        <div class="mb-3">
+            <label class="form-label" asp-for="Image">Immagine</label>
+            <input class="form-control" asp-for="Image" type="file" />
         </div>
-    }
-    @if (!string.IsNullOrEmpty(Model.InpaintingMapBase64))
-    {
-        <div>
-            <h3>Inpainting</h3>
-            <p>Punteggio: @Model.Result.InpaintingScore.ToString("F2")</p>
-            <img src="data:image/png;base64,@Model.InpaintingMapBase64" alt="Inpainting" />
+
+        <div class="card mb-3">
+            <div class="card-header">Controllo ELA</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ElaQuality"></label>
+                    <input class="form-control" asp-for="Options.ElaQuality" type="number" />
+                </div>
+            </div>
         </div>
-    }
-    @if (Model.Result.ExifAnomalies.Count > 0)
+
+        <div class="card mb-3">
+            <div class="card-header">Controllo Copy-Move</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.CopyMoveFeatureCount"></label>
+                    <input class="form-control" asp-for="Options.CopyMoveFeatureCount" type="number" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.CopyMoveMatchDistance"></label>
+                    <input class="form-control" asp-for="Options.CopyMoveMatchDistance" type="number" step="0.1" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.CopyMoveRansacReproj"></label>
+                    <input class="form-control" asp-for="Options.CopyMoveRansacReproj" type="number" step="0.1" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.CopyMoveRansacProb"></label>
+                    <input class="form-control" asp-for="Options.CopyMoveRansacProb" type="number" step="0.01" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Controllo Splicing</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.SplicingInputWidth"></label>
+                    <input class="form-control" asp-for="Options.SplicingInputWidth" type="number" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.SplicingInputHeight"></label>
+                    <input class="form-control" asp-for="Options.SplicingInputHeight" type="number" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Controllo Noiseprint</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.NoiseprintInputSize"></label>
+                    <input class="form-control" asp-for="Options.NoiseprintInputSize" type="number" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Metadati</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label" asp-for="Options.ExpectedCameraModels"></label>
+                    <input class="form-control" asp-for="Options.ExpectedCameraModels" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Pesi</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Options.ElaWeight"></label>
+                        <input class="form-control" asp-for="Options.ElaWeight" type="number" step="0.1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Options.CopyMoveWeight"></label>
+                        <input class="form-control" asp-for="Options.CopyMoveWeight" type="number" step="0.1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Options.SplicingWeight"></label>
+                        <input class="form-control" asp-for="Options.SplicingWeight" type="number" step="0.1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Options.InpaintingWeight"></label>
+                        <input class="form-control" asp-for="Options.InpaintingWeight" type="number" step="0.1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" asp-for="Options.ExifWeight"></label>
+                        <input class="form-control" asp-for="Options.ExifWeight" type="number" step="0.1" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Soglie</div>
+            <div class="card-body row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Options.CleanThreshold"></label>
+                    <input class="form-control" asp-for="Options.CleanThreshold" type="number" step="0.01" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Options.TamperedThreshold"></label>
+                    <input class="form-control" asp-for="Options.TamperedThreshold" type="number" step="0.01" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Altre opzioni</div>
+            <div class="card-body row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Options.EnabledChecks"></label>
+                    <input class="form-control" asp-for="Options.EnabledChecks" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" asp-for="Options.MaxParallelChecks"></label>
+                    <input class="form-control" asp-for="Options.MaxParallelChecks" type="number" />
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Analizza</button>
+    </form>
+
+    @if (Model.Result != null)
     {
-        <div>
-            <h3>EXIF</h3>
-            <p>Punteggio: @Model.Result.ExifScore.ToString("F2")</p>
-            <ul>
-            @foreach (var kv in Model.Result.ExifAnomalies)
+        <div class="alert alert-info">
+            <h2>Risultato: @Model.Result.Verdict</h2>
+            <p>Punteggio totale: @Model.Result.TotalScore.ToString("F2")</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">ELA (@Model.Result.ElaScore.ToString("F2"))</div>
+                    <div class="card-body">
+                        <img class="img-fluid" src="data:image/png;base64,@Model.ElaMapBase64" alt="Mappa ELA" />
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">Copy-Move (@Model.Result.CopyMoveScore.ToString("F2"))</div>
+                    <div class="card-body">
+                        <img class="img-fluid" src="data:image/png;base64,@Model.CopyMoveMapBase64" alt="Copy-Move" />
+                    </div>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.SplicingMapBase64))
             {
-                <li>@kv.Key: @kv.Value</li>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">Splicing (@Model.Result.SplicingScore.ToString("F2"))</div>
+                        <div class="card-body">
+                            <img class="img-fluid" src="data:image/png;base64,@Model.SplicingMapBase64" alt="Splicing" />
+                        </div>
+                    </div>
+                </div>
             }
-            </ul>
+            @if (!string.IsNullOrEmpty(Model.InpaintingMapBase64))
+            {
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">Inpainting (@Model.Result.InpaintingScore.ToString("F2"))</div>
+                        <div class="card-body">
+                            <img class="img-fluid" src="data:image/png;base64,@Model.InpaintingMapBase64" alt="Inpainting" />
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (Model.Result.ExifAnomalies.Count > 0)
+            {
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">EXIF (@Model.Result.ExifScore.ToString("F2"))</div>
+                        <div class="card-body">
+                            <ul class="mb-0">
+                            @foreach (var kv in Model.Result.ExifAnomalies)
+                            {
+                                <li>@kv.Key: @kv.Value</li>
+                            }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     }
-}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
