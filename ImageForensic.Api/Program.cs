@@ -1,8 +1,5 @@
 using System;
 using System.Globalization;
-using System.Net.Http;
-using Microsoft.AspNetCore.Components;
-using AntDesign;
 using ImageForensic.Api;
 using ImageForensics.Core;
 
@@ -12,24 +9,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IForensicsAnalyzer, ForensicsAnalyzer>();
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddAntDesign();
-
-// Register an HttpClient that points to the app's base URI so that
-// Razor components can issue relative HTTP requests without errors.
-builder.Services.AddHttpClient();
-builder.Services.AddScoped<HttpClient>(sp =>
-{
-    var navigationManager = sp.GetRequiredService<NavigationManager>();
-    return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
-});
 
 var app = builder.Build();
 
 var culture = new CultureInfo("it-IT");
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
-LocaleProvider.DefaultLanguage = "it-IT";
 
 app.UseStaticFiles();
 app.UseRouting();
@@ -37,9 +22,8 @@ app.UseRouting();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
 app.MapAnalyzerEndpoints();
+app.MapRazorPages();
 
 app.Run();
 
