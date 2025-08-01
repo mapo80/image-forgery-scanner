@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
+using Serilog;
 
 namespace ImageForensic.Api.Pages;
 
@@ -74,10 +75,14 @@ public class IndexModel : PageModel
             SplicingMapBase64 = Convert.ToBase64String(Result.SplicingMap);
             InpaintingMapBase64 = Convert.ToBase64String(Result.InpaintingMap);
         }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error analyzing image");
+        }
         finally
         {
-            try { System.IO.File.Delete(tempFile); } catch { }
-            try { Directory.Delete(workDir, true); } catch { }
+            try { System.IO.File.Delete(tempFile); } catch (Exception ex) { Log.Error(ex, "Error deleting temp file"); }
+            try { Directory.Delete(workDir, true); } catch (Exception ex) { Log.Error(ex, "Error deleting work dir"); }
         }
 
         return Page();
