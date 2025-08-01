@@ -22,8 +22,9 @@ public static class ElaAnalyzer
         Log.Debug("Cloning image and setting quality to {Quality}", quality);
         using var comp = orig.Clone();
         comp.Quality = quality;
+        comp.Format = MagickFormat.Jpeg;
         Log.Debug("Encoding image to JPEG");
-        byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
+        byte[] jpeg = comp.ToByteArray();
         Log.Debug("Reloading compressed image for comparison");
         using var compReloaded = new MagickImage(jpeg);
 
