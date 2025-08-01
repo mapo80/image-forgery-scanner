@@ -529,3 +529,14 @@ Il codice del repository è rilasciato con licenza MIT. Contributi e segnalazion
 | c9urh6i_0.jpg | 0.52 | 0.16 | 0.08 | 0.00 | 0.00 | 0.00 | 0.00 |
 | c9v6alw_0.jpg | 0.54 | 0.28 | 0.18 | 0.00 | 0.00 | 0.01 | 0.00 |
 | c9vwn43_0.jpg | 0.80 | 0.05 | 1.56 | 0.06 | 0.11 | 0.11 | 0.00 |
+
+## Advanced ELA Analysis
+
+The `ElaMetrics.Cli` utility now supports a multi-scale ELA pipeline with feature extraction, adaptive segmentation and an extended set of pixel and region metrics. Configuration lives in `ImageForensics/src/ElaMetrics.Cli/appsettings.json`.
+
+### Usage
+```bash
+dotnet run --project ImageForensics/src/ElaMetrics.Cli -- dataset/imd2020
+```
+The command produces `ela-advanced-metrics.csv` and an interactive `ela-advanced-report.html` inside the dataset directory.
+
