@@ -1,182 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using ImageMagick;
 using MathNet.Numerics.Statistics;
 using MathNet.Numerics.Distributions;
-using OpenCvSharp;
 
 namespace ImageForensics.Core.Algorithms;
 
 public static class ElaMetrics
 {
-    public enum ElaAggregation
-    {
-        Max,
-        Mean,
-        Median
-    }
-
-    /// <summary>
-    /// Generates the ELA heat-map for a given image applying an optional Laplacian
-    /// high-pass filter before JPEG recompression.
-    /// </summary>
-    public static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90, bool highPass = true)
-    {
-        using var pre = img.Clone();
-        if (highPass)
-        {
-            byte[] bmp = pre.ToByteArray(MagickFormat.Bmp);
-            using var mat = Cv2.ImDecode(bmp, ImreadModes.Color);
-            using var lap = new Mat();
-            Cv2.Laplacian(mat, lap, mat.Type());
-            Cv2.ImEncode(".bmp", lap, out var lapBytes);
-            pre.Read(lapBytes);
-        }
-        using var comp = pre.Clone();
-        comp.Quality = jpegQuality;
-        byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
-        using var rec = new MagickImage(jpeg);
-
-        int w = pre.Width;
-        int h = pre.Height;
-        var map = new float[w, h];
-        double max = 0;
-        using var origPixels = pre.GetPixels();
-        using var recPixels = rec.GetPixels();
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                var o = origPixels.GetPixel(x, y);
-                var r = recPixels.GetPixel(x, y);
-                int dr = (int)Math.Abs(o.GetChannel(0) - r.GetChannel(0));
-                int dg = (int)Math.Abs(o.GetChannel(1) - r.GetChannel(1));
-                int db = (int)Math.Abs(o.GetChannel(2) - r.GetChannel(2));
-                int diff = Math.Max(Math.Max(dr, dg), db);
-                map[x, y] = diff;
-                if (diff > max) max = diff;
-            }
-        }
-        if (max > 0)
-        {
-            float scale = (float)(1.0 / max);
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                    map[x, y] *= scale;
-        }
-        return map;
-    }
-
-    /// <summary>
-    /// Computes ELA maps for multiple JPEG qualities and aggregates them.
-    /// </summary>
-    public static float[,] ComputeElaMapMulti(MagickImage img, int[] qualities, ElaAggregation agg = ElaAggregation.Max)
-    {
-        var maps = qualities.Select(q => ComputeElaMap(img, q)).ToArray();
-        int w = maps[0].GetLength(0);
-        int h = maps[0].GetLength(1);
-        var result = new float[w, h];
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                if (agg == ElaAggregation.Mean)
-                {
-                    float sum = 0;
-                    foreach (var m in maps) sum += m[x, y];
-                    result[x, y] = sum / maps.Length;
-                }
-                else if (agg == ElaAggregation.Median)
-                {
-                    var vals = maps.Select(m => m[x, y]).OrderBy(v => v).ToArray();
-                    result[x, y] = vals[vals.Length / 2];
-                }
-                else
-                {
-                    float max = 0;
-                    foreach (var m in maps) if (m[x, y] > max) max = m[x, y];
-                    result[x, y] = max;
-                }
-            }
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Applies robust z-score normalization with optional logarithmic scaling.
-    /// </summary>
-    public static void RobustNormalize(float[,] map, double? alphaLog = null)
-    {
-        var flat = FlattenEla(map);
-        double median = flat.Median();
-        var abs = flat.Select(v => Math.Abs(v - median)).ToArray();
-        double mad = abs.Median();
-        if (mad == 0) mad = 1e-6;
-        int w = map.GetLength(0);
-        int h = map.GetLength(1);
-        double min = double.MaxValue, max = double.MinValue;
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                double z = (map[x, y] - median) / mad;
-                if (alphaLog.HasValue)
-                    z = Math.Log(1 + alphaLog.Value * Math.Abs(z));
-                map[x, y] = (float)z;
-                if (z < min) min = z;
-                if (z > max) max = z;
-            }
-        }
-        if (max > min)
-        {
-            float scale = (float)(1.0 / (max - min));
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                    map[x, y] = (float)((map[x, y] - min) * scale);
-        }
-    }
-
-    /// <summary>
-    /// Performs a simple morphological opening (dilation then erosion).
-    /// </summary>
-    public static void MorphologicalOpening(float[,] map, int iterations = 1)
-    {
-        int w = map.GetLength(0);
-        int h = map.GetLength(1);
-        var tmp = new float[w, h];
-        for (int it = 0; it < iterations; it++)
-        {
-            // dilation
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    float max = 0;
-                    for (int j = -1; j <= 1; j++)
-                        for (int i = -1; i <= 1; i++)
-                        {
-                            int nx = x + i, ny = y + j;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h)
-                                if (map[nx, ny] > max) max = map[nx, ny];
-                        }
-                    tmp[x, y] = max;
-                }
-            // erosion
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    float min = float.MaxValue;
-                    for (int j = -1; j <= 1; j++)
-                        for (int i = -1; i <= 1; i++)
-                        {
-                            int nx = x + i, ny = y + j;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h)
-                                if (tmp[nx, ny] < min) min = tmp[nx, ny];
-                        }
-                    map[x, y] = min;
-                }
-        }
-    }
-
     static double[] FlattenMask(byte[,] mask)
     {
         int w = mask.GetLength(0);
@@ -189,28 +20,27 @@ public static class ElaMetrics
         return arr;
     }
 
-    static double[] FlattenEla(float[,] ela)
+    static double[] FlattenScores(float[,] map)
     {
-        int w = ela.GetLength(0);
-        int h = ela.GetLength(1);
+        int w = map.GetLength(0);
+        int h = map.GetLength(1);
         var arr = new double[w * h];
         int idx = 0;
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
-                arr[idx++] = ela[x, y];
+                arr[idx++] = map[x, y];
         return arr;
     }
 
     public static double ComputeRocAucPixel(byte[,] mask, float[,] elaMap)
     {
         var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
+        var scores = FlattenScores(elaMap);
         var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score).ToArray();
         double pos = labels.Count(l => l > 0.5);
         double neg = labels.Length - pos;
         double tp = 0, fp = 0;
-        double prevTp = 0, prevFp = 0;
-        double prevScore = double.PositiveInfinity;
+        double prevTp = 0, prevFp = 0, prevScore = double.PositiveInfinity;
         double auc = 0;
         foreach (var p in pairs)
         {
@@ -230,7 +60,7 @@ public static class ElaMetrics
     public static double ComputePraucPixel(byte[,] mask, float[,] elaMap)
     {
         var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
+        var scores = FlattenScores(elaMap);
         var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score).ToArray();
         double pos = labels.Count(l => l > 0.5);
         double tp = 0, fp = 0;
@@ -251,7 +81,7 @@ public static class ElaMetrics
     public static double ComputeNss(byte[,] mask, float[,] elaMap)
     {
         var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
+        var scores = FlattenScores(elaMap);
         double mean = scores.Average();
         double std = Math.Sqrt(scores.Sum(s => (s - mean) * (s - mean)) / scores.Length);
         if (std == 0) return 0;
@@ -272,7 +102,7 @@ public static class ElaMetrics
     public static (double r, double p) ComputePearson(byte[,] mask, float[,] elaMap)
     {
         var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
+        var scores = FlattenScores(elaMap);
         double r = Correlation.Pearson(labels, scores);
         int n = labels.Length;
         double t = r * Math.Sqrt((n - 2) / (1 - r * r));
@@ -283,7 +113,7 @@ public static class ElaMetrics
     public static (double rho, double p) ComputeSpearman(byte[,] mask, float[,] elaMap)
     {
         var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
+        var scores = FlattenScores(elaMap);
         double rho = Correlation.Spearman(labels, scores);
         int n = labels.Length;
         double t = rho * Math.Sqrt((n - 2) / (1 - rho * rho));
@@ -291,12 +121,11 @@ public static class ElaMetrics
         return (rho, p);
     }
 
-    public static double ComputeFprAtTpr(byte[,] mask, float[,] elaMap, double tprTarget)
+    public static double ComputeFprAtTpr(byte[,] gtMask, float[,] scores, double tprTarget = 0.95)
     {
-        var labels = FlattenMask(mask);
-        var scores = FlattenEla(elaMap);
-        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l))
-            .OrderByDescending(p => p.Score).ToArray();
+        var labels = FlattenMask(gtMask);
+        var vals = FlattenScores(scores);
+        var pairs = vals.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score);
         double pos = labels.Count(l => l > 0.5);
         double neg = labels.Length - pos;
         double tp = 0, fp = 0;
@@ -310,12 +139,11 @@ public static class ElaMetrics
         return 1.0;
     }
 
-    public static double ComputeAveragePrecision(byte[,] mask, float[,] scoresMap)
+    public static double ComputeAveragePrecision(byte[,] gtMask, float[,] scores)
     {
-        var labels = FlattenMask(mask);
-        var scores = FlattenEla(scoresMap);
-        var pairs = scores.Zip(labels, (s, l) => (Score: s, Label: l))
-            .OrderByDescending(p => p.Score).ToArray();
+        var labels = FlattenMask(gtMask);
+        var vals = FlattenScores(scores);
+        var pairs = vals.Zip(labels, (s, l) => (Score: s, Label: l)).OrderByDescending(p => p.Score);
         double pos = labels.Count(l => l > 0.5);
         double tp = 0, fp = 0;
         double ap = 0, prevRecall = 0;
@@ -334,13 +162,12 @@ public static class ElaMetrics
     {
         int w = elaMap.GetLength(0);
         int h = elaMap.GetLength(1);
-        int bins = 256;
+        const int bins = 256;
         var hist = new int[bins];
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
-                int bin = (int)Math.Round(elaMap[x, y] * (bins - 1));
-                if (bin < 0) bin = 0; if (bin >= bins) bin = bins - 1;
+                int bin = (int)Math.Round(Math.Clamp(elaMap[x, y], 0f, 1f) * (bins - 1));
                 hist[bin]++;
             }
         int total = w * h;
@@ -375,59 +202,6 @@ public static class ElaMetrics
             for (int x = 0; x < w; x++)
                 mask[x, y] = elaMap[x, y] >= threshold;
         return mask;
-    }
-
-    /// <summary>
-    /// Computes a global percentile threshold on the ELA map.
-    /// </summary>
-    public static double ComputePercentileThreshold(float[,] elaMap, double percentile)
-    {
-        var arr = FlattenEla(elaMap).OrderBy(v => v).ToArray();
-        double pos = percentile * (arr.Length - 1);
-        int idx = (int)pos;
-        double frac = pos - idx;
-        if (idx >= arr.Length - 1) return arr[^1];
-        return arr[idx] * (1 - frac) + arr[idx + 1] * frac;
-    }
-
-    /// <summary>
-    /// Adaptive thresholding using OpenCvSharp's AdaptiveThreshold.
-    /// </summary>
-    public static bool[,] AdaptiveThreshold(float[,] elaMap, int blockSize = 31, double c = 0.01)
-    {
-        int w = elaMap.GetLength(0);
-        int h = elaMap.GetLength(1);
-        using var mat = new Mat(h, w, MatType.CV_8UC1);
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                mat.Set(y, x, (byte)(Math.Clamp(elaMap[x, y], 0, 1) * 255));
-        using var bin = new Mat();
-        Cv2.AdaptiveThreshold(mat, bin, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, blockSize, c);
-        var mask = new bool[w, h];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                mask[x, y] = bin.Get<byte>(y, x) > 0;
-        return mask;
-    }
-
-    /// <summary>
-    /// Finds the threshold that maximises the F1 score on a validation mask.
-    /// </summary>
-    public static double ComputeBestF1Threshold(byte[,] mask, float[,] elaMap, int steps = 100)
-    {
-        double bestT = 0, bestF1 = 0;
-        for (int i = 0; i <= steps; i++)
-        {
-            double t = i / (double)steps;
-            var pred = BinarizeElaMap(elaMap, t);
-            double f1 = ComputeDicePixel(mask, pred);
-            if (f1 > bestF1)
-            {
-                bestF1 = f1;
-                bestT = t;
-            }
-        }
-        return bestT;
     }
 
     public static double ComputeIoUPixel(byte[,] mask, bool[,] predMask)
@@ -477,53 +251,168 @@ public static class ElaMetrics
                 bool gt = mask[x, y] > 0;
                 bool pr = predMask[x, y];
                 if (gt && pr) tp++;
-                else if (!gt && !pr) tn++;
                 else if (!gt && pr) fp++;
-                else fn++;
+                else if (gt && !pr) fn++;
+                else tn++;
             }
         double denom = Math.Sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn));
         return denom == 0 ? 0 : (tp * tn - fp * fn) / denom;
     }
 
-    /// <summary>
-    /// Computes the Boundary F1 score using Canny edges with configurable tolerance.
-    /// </summary>
-    public static double ComputeBoundaryF1(byte[,] mask, bool[,] predMask, int tol = 2)
+    public static double ComputeBoundaryF1(byte[,] gtMask, bool[,] predMask, int tolerance)
+    {
+        int w = gtMask.GetLength(0);
+        int h = gtMask.GetLength(1);
+        var gtEdge = ExtractEdges(gtMask);
+        var prEdge = ExtractEdges(predMask);
+
+        bool HasNeighbor(bool[,] edges, int x, int y)
+        {
+            for (int j = -tolerance; j <= tolerance; j++)
+            {
+                int ny = y + j;
+                if (ny < 0 || ny >= h) continue;
+                for (int i = -tolerance; i <= tolerance; i++)
+                {
+                    int nx = x + i;
+                    if (nx < 0 || nx >= w) continue;
+                    if (edges[nx, ny]) return true;
+                }
+            }
+            return false;
+        }
+
+        int tp = 0, fp = 0, fn = 0;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (gtEdge[x, y])
+                {
+                    if (HasNeighbor(prEdge, x, y)) tp++; else fn++;
+                }
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (prEdge[x, y])
+                {
+                    if (!HasNeighbor(gtEdge, x, y)) fp++;
+                }
+        double denom = 2 * tp + fp + fn;
+        return denom == 0 ? 0 : 2.0 * tp / denom;
+    }
+
+    static bool[,] ExtractEdges(byte[,] mask)
     {
         int w = mask.GetLength(0);
         int h = mask.GetLength(1);
-        using var gt = new Mat(h, w, MatType.CV_8UC1);
-        using var pr = new Mat(h, w, MatType.CV_8UC1);
+        var edges = new bool[w, h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (mask[x, y] > 0)
+                {
+                    if (x == 0 || y == 0 || x == w - 1 || y == h - 1 ||
+                        mask[x - 1, y] == 0 || mask[x + 1, y] == 0 || mask[x, y - 1] == 0 || mask[x, y + 1] == 0)
+                        edges[x, y] = true;
+                }
+        return edges;
+    }
+
+    static bool[,] ExtractEdges(bool[,] mask)
+    {
+        int w = mask.GetLength(0);
+        int h = mask.GetLength(1);
+        var edges = new bool[w, h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (mask[x, y])
+                {
+                    if (x == 0 || y == 0 || x == w - 1 || y == h - 1 ||
+                        !mask[x - 1, y] || !mask[x + 1, y] || !mask[x, y - 1] || !mask[x, y + 1])
+                        edges[x, y] = true;
+                }
+        return edges;
+    }
+
+    public static double ComputeRegionIoU(byte[,] gtMask, bool[,] predMask)
+    {
+        int w = gtMask.GetLength(0);
+        int h = gtMask.GetLength(1);
+        var gtBool = new bool[w, h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                gtBool[x, y] = gtMask[x, y] > 0;
+        var (gtLabels, gtAreas) = LabelComponents(gtBool);
+        var (prLabels, prAreas) = LabelComponents(predMask);
+        int gtCount = gtAreas.Count;
+        if (gtCount == 0) return 0;
+        var inter = new Dictionary<(int, int), int>();
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
-                gt.Set(y, x, mask[x, y] > 0 ? (byte)255 : (byte)0);
-                pr.Set(y, x, predMask[x, y] ? (byte)255 : (byte)0);
+                int g = gtLabels[x, y];
+                int p = prLabels[x, y];
+                if (g > 0 && p > 0)
+                {
+                    var key = (g, p);
+                    inter[key] = inter.TryGetValue(key, out int v) ? v + 1 : 1;
+                }
             }
-        using var gtEdges = new Mat();
-        using var prEdges = new Mat();
-        Cv2.Canny(gt, gtEdges, 100, 200);
-        Cv2.Canny(pr, prEdges, 100, 200);
-        int k = 2 * tol + 1;
-        var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(k, k));
-        using var gtDil = new Mat();
-        using var prDil = new Mat();
-        Cv2.Dilate(gtEdges, gtDil, kernel);
-        Cv2.Dilate(prEdges, prDil, kernel);
-        using var tpMat = new Mat();
-        Cv2.BitwiseAnd(gtEdges, prDil, tpMat);
-        using var fpMat = new Mat();
-        using var notGtDil = new Mat();
-        Cv2.BitwiseNot(gtDil, notGtDil);
-        Cv2.BitwiseAnd(prEdges, notGtDil, fpMat);
-        using var fnMat = new Mat();
-        using var notPrDil = new Mat();
-        Cv2.BitwiseNot(prDil, notPrDil);
-        Cv2.BitwiseAnd(gtEdges, notPrDil, fnMat);
-        double tp = Cv2.CountNonZero(tpMat);
-        double fp = Cv2.CountNonZero(fpMat);
-        double fn = Cv2.CountNonZero(fnMat);
-        double denom = 2 * tp + fp + fn;
-        return denom == 0 ? 0 : 2 * tp / denom;
+        double sum = 0;
+        for (int g = 1; g <= gtCount; g++)
+        {
+            int bestP = 0;
+            int bestInter = 0;
+            foreach (var kv in inter)
+            {
+                if (kv.Key.Item1 == g && kv.Value > bestInter)
+                {
+                    bestInter = kv.Value;
+                    bestP = kv.Key.Item2;
+                }
+            }
+            if (bestInter > 0 && bestP > 0)
+            {
+                int union = gtAreas[g - 1] + prAreas[bestP - 1] - bestInter;
+                sum += union > 0 ? (double)bestInter / union : 0;
+            }
+        }
+        return sum / gtCount;
+    }
+
+    static (int[,] labels, List<int> areas) LabelComponents(bool[,] mask)
+    {
+        int w = mask.GetLength(0);
+        int h = mask.GetLength(1);
+        var labels = new int[w, h];
+        var areas = new List<int>();
+        int label = 0;
+        int[] dx = { 1, -1, 0, 0 };
+        int[] dy = { 0, 0, 1, -1 };
+        var stack = new Stack<(int, int)>();
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (mask[x, y] && labels[x, y] == 0)
+                {
+                    label++;
+                    int area = 0;
+                    labels[x, y] = label;
+                    stack.Push((x, y));
+                    while (stack.Count > 0)
+                    {
+                        var (cx, cy) = stack.Pop();
+                        area++;
+                        for (int k = 0; k < 4; k++)
+                        {
+                            int nx = cx + dx[k];
+                            int ny = cy + dy[k];
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h &&
+                                mask[nx, ny] && labels[nx, ny] == 0)
+                            {
+                                labels[nx, ny] = label;
+                                stack.Push((nx, ny));
+                            }
+                        }
+                    }
+                    areas.Add(area);
+                }
+        return (labels, areas);
     }
 }

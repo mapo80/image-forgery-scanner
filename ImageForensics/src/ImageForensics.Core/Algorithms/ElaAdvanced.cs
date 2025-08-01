@@ -52,12 +52,49 @@ public class RegionScore
 
 public static class ElaAdvanced
 {
+    static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90)
+    {
+        using var comp = img.Clone();
+        comp.Quality = jpegQuality;
+        byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
+        using var rec = new MagickImage(jpeg);
+
+        int w = img.Width;
+        int h = img.Height;
+        var map = new float[w, h];
+        double max = 0;
+        using var origPixels = img.GetPixels();
+        using var recPixels = rec.GetPixels();
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                var o = origPixels.GetPixel(x, y);
+                var r = recPixels.GetPixel(x, y);
+                int dr = (int)Math.Abs(o.GetChannel(0) - r.GetChannel(0));
+                int dg = (int)Math.Abs(o.GetChannel(1) - r.GetChannel(1));
+                int db = (int)Math.Abs(o.GetChannel(2) - r.GetChannel(2));
+                int diff = Math.Max(Math.Max(dr, dg), db);
+                map[x, y] = diff;
+                if (diff > max) max = diff;
+            }
+        }
+        if (max > 0)
+        {
+            float scale = (float)(1.0 / max);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    map[x, y] *= scale;
+        }
+        return map;
+    }
+
     public static float[][,] ComputeMultiScaleElaMap(MagickImage img, int[] jpegQualities)
     {
         var maps = new float[jpegQualities.Length][,];
         for (int i = 0; i < jpegQualities.Length; i++)
         {
-            maps[i] = ElaMetrics.ComputeElaMap(img, jpegQualities[i]);
+            maps[i] = ComputeElaMap(img, jpegQualities[i]);
         }
         return maps;
     }
