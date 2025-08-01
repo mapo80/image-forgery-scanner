@@ -15,7 +15,7 @@ public class DeepfakeDatasetTests
 {
     private static readonly string DataDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../", "dataset", "deepfake"));
 
-    [Fact]
+    [Fact(Skip = "Requires deepfake dataset and noiseprint models")]
     public async Task Process_Deepfake_Dataset()
     {
         var analyzer = new ForensicsAnalyzer();

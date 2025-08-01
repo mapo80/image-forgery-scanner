@@ -11,7 +11,7 @@ public class NoiseprintModelSelectionTests
 {
     private static string ModelsDir => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../ImageForensics/src/Models/onnx/noiseprint"));
 
-    [Fact]
+    [Fact(Skip = "Requires noiseprint models")]
     public void Run_Png_LoadsDefaultModel()
     {
         string img = Path.Combine(AppContext.BaseDirectory, "testdata", "clean.png");
@@ -22,7 +22,7 @@ public class NoiseprintModelSelectionTests
         NoiseprintSdkWrapper.LoadedQf.Should().Be(101);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires noiseprint models")]
     public void Run_Jpeg_LoadsQualitySpecificModel()
     {
         using var m = new MagickImage(MagickColors.White, 32, 32);

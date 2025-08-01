@@ -183,7 +183,14 @@ static Task RunBenchmarkAsync(
         if (benchEla)
         {
             var sw = Stopwatch.StartNew();
-            var (score, _) = ElaAnalyzer.Analyze(file, workDir, opts.ElaQuality);
+            var (score, _) = ElaPipeline.Analyze(
+                file,
+                workDir,
+                opts.ElaQuality,
+                opts.ElaWindowSize,
+                opts.ElaK,
+                opts.ElaMinArea,
+                opts.ElaKernelSize);
             sw.Stop();
             elaTimes.Add(sw.ElapsedMilliseconds);
             record["elaScore"] = score;

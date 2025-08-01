@@ -193,6 +193,10 @@ La risposta è un oggetto `AnalyzeImageResult` con punteggi, mappe generate come
 | Property | Description | Default |
 |--------------------------|----------------------------------------------------------|--------:|
 | `ElaQuality` | JPEG quality used when recompressing the image for ELA | `75` |
+| `ElaWindowSize` | Neighborhood size used by the Sauvola threshold | `15` |
+| `ElaK` | Parameter *k* for the Sauvola threshold | `0.2` |
+| `ElaMinArea` | Minimum region area kept after morphology | `100` |
+| `ElaKernelSize` | Morphological kernel size for mask refinement | `5` |
 | `CopyMoveFeatureCount` | Number of SIFT features extracted for copy‑move detection | `5000` |
 | `CopyMoveMatchDistance` | Maximum descriptor distance for a valid match | `3.0` |
 | `CopyMoveRansacReproj` | RANSAC reprojection threshold in pixels | `3.0` |
