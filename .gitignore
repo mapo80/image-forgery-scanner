@@ -389,4 +389,4 @@ FodyWeavers.xsd
 Links.SpotBooking.Api/public
 
 # ONNX models
-
+_cache
