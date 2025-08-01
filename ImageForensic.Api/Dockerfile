@@ -30,6 +30,8 @@ RUN dotnet publish "./ImageForensic.Api.csproj" -c $BUILD_CONFIGURATION -o /app/
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
 COPY ["so/libOpenCvSharpExtern.so", "/app/"]
 ENV LD_LIBRARY_PATH=/app:$LD_LIBRARY_PATH
+
 ENTRYPOINT ["dotnet", "ImageForensic.Api.dll"]
