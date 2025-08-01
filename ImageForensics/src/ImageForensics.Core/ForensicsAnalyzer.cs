@@ -121,11 +121,9 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             ipTask = RunAsync(() =>
             {
                 string modelsDir = options.NoiseprintModelsDir;
-                if (!Path.IsPathRooted(modelsDir))
-                {
-                    modelsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-                        "..", "..", "..", "..", "..", "..", modelsDir));
-                }
+
+                Log.Information("Noiseprint models directory: {ModelsDir}", modelsDir);
+
                 if (!Directory.Exists(modelsDir))
                     throw new DirectoryNotFoundException($"Noiseprint models not found in '{modelsDir}'");
 
