@@ -33,6 +33,13 @@ public class IndexModel : PageModel
 
     public AnalyzeImageOptionsForm DefaultOptions { get; } = new();
     public List<string> AvailableCameraModels { get; } = new() { "Canon EOS 80D", "Nikon D850" };
+    public Dictionary<ForensicsCheck, string> CheckDescriptions { get; } = new()
+    {
+        { ForensicsCheck.Ela, "Error Level Analysis highlights compression inconsistencies." },
+        { ForensicsCheck.CopyMove, "Detects duplicated regions from copy-move operations." },
+        { ForensicsCheck.Inpainting, "Looks for traces of inpainting." },
+        { ForensicsCheck.Exif, "Analyzes image metadata for anomalies." }
+    };
 
     public string SpiegaPunteggio(double punteggio)
     {

@@ -170,15 +170,8 @@
             <div class="card-header">Altre opzioni</div>
             <div class="card-body row g-3">
                 <div class="col-md-6">
-                    @{ var checkDescriptions = new Dictionary<ForensicsCheck, string>
-                        {
-                            { ForensicsCheck.Ela, "Error Level Analysis highlights compression inconsistencies." },
-                            { ForensicsCheck.CopyMove, "Detects duplicated regions from copy-move operations." },
-                            { ForensicsCheck.Inpainting, "Looks for traces of inpainting." },
-                            { ForensicsCheck.Exif, "Analyzes image metadata for anomalies." }
-                        }; }
                     <label class="form-label">Enabled checks <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Select which analyses to run."></i></label>
-                    @foreach (var check in Enum.GetValues<ForensicsCheck>())
+                    @foreach (var check in Enum.GetValues(typeof(ForensicsCheck)).Cast<ForensicsCheck>())
                     {
                         if (check == ForensicsCheck.None || check == ForensicsCheck.All || check == ForensicsCheck.Splicing)
                         {
@@ -188,7 +181,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="check-@check" name="Options.EnabledChecks" value="@check" @(Model.Options.EnabledChecks?.Contains(check.ToString()) == true ? "checked" : "") />
                             <label class="form-check-label" for="check-@check">@label</label>
-                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="@checkDescriptions[check]"></i>
+                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="@Model.CheckDescriptions[check]"></i>
                         </div>
                     }
                 </div>
@@ -213,127 +206,7 @@
 
     @if (Model.Result != null)
     {
-        <div id="result">
-            <div class="alert alert-info">
-                <h2>Risultato: @Model.Result.Verdict</h2>
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr><th>Punteggio totale</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>@Model.Result.TotalScore.ToString("F2")</td>
-                            <td>@Model.Options.CleanThreshold</td>
-                            <td>@Model.Options.TamperedThreshold</td>
-                            <td>@Model.SpiegaPunteggio(Model.Result.TotalScore)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            @if (Model.Result.Errors.Count > 0)
-            {
-                <div class="alert alert-warning">
-                    <h3>Errori dei controlli</h3>
-                    <ul class="mb-0">
-                    @foreach (var kv in Model.Result.Errors)
-                    {
-                        <li><strong>@kv.Key</strong>: @kv.Value</li>
-                    }
-                    </ul>
-                </div>
-            }
-            <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">ELA</div>
-                    <div class="card-body">
-                        <table class="table table-sm">
-                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
-                            <tbody>
-                                <tr>
-                                    <td>@Model.Result.ElaScore.ToString("F2")</td>
-                                    <td>@Model.Options.CleanThreshold</td>
-                                    <td>@Model.Options.TamperedThreshold</td>
-                                    <td>@Model.SpiegaPunteggio(Model.Result.ElaScore)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <img class="img-fluid mt-2" src="data:image/png;base64,@Model.ElaMapBase64" alt="ELA map" />
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header">Copy-Move</div>
-                    <div class="card-body">
-                        <table class="table table-sm">
-                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
-                            <tbody>
-                                <tr>
-                                    <td>@Model.Result.CopyMoveScore.ToString("F2")</td>
-                                    <td>@Model.Options.CleanThreshold</td>
-                                    <td>@Model.Options.TamperedThreshold</td>
-                                    <td>@Model.SpiegaPunteggio(Model.Result.CopyMoveScore)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <img class="img-fluid mt-2" src="data:image/png;base64,@Model.CopyMoveMapBase64" alt="Copy-Move map" />
-                    </div>
-                </div>
-            </div>
-            @if (!string.IsNullOrEmpty(Model.InpaintingMapBase64))
-            {
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">Inpainting</div>
-                        <div class="card-body">
-                            <table class="table table-sm">
-                                <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
-                                <tbody>
-                                    <tr>
-                                        <td>@Model.Result.InpaintingScore.ToString("F2")</td>
-                                        <td>@Model.Options.CleanThreshold</td>
-                                        <td>@Model.Options.TamperedThreshold</td>
-                                        <td>@Model.SpiegaPunteggio(Model.Result.InpaintingScore)</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <img class="img-fluid mt-2" src="data:image/png;base64,@Model.InpaintingMapBase64" alt="Inpainting map" />
-                        </div>
-                    </div>
-                </div>
-            }
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">Metadata</div>
-                    <div class="card-body">
-                        <table class="table table-sm mb-3">
-                            <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
-                            <tbody>
-                                <tr>
-                                    <td>@Model.Result.ExifScore.ToString("F2")</td>
-                                    <td>@Model.Options.CleanThreshold</td>
-                                    <td>@Model.Options.TamperedThreshold</td>
-                                    <td>@Model.SpiegaPunteggio(Model.Result.ExifScore)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        @if (Model.Result.ExifAnomalies.Count > 0)
-                        {
-                            <table class="table table-sm mb-0">
-                                <thead><tr><th>Campo</th><th>Valore</th></tr></thead>
-                                <tbody>
-                                @foreach (var kv in Model.Result.ExifAnomalies)
-                                {
-                                    <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
-                                }
-                                </tbody>
-                            </table>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
+        @await Html.PartialAsync("_Result", Model)
     }
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
