@@ -1,22 +1,17 @@
-using System;
 using System.Collections.Generic;
 
 namespace ImageForensics.Core.Models;
 
 public record ForensicsResult(
     double ElaScore,
-    byte[] ElaMap,
     string ElaMapPath,
     double CopyMoveScore,
-    byte[] CopyMoveMask,
     string CopyMoveMaskPath)
 {
     public double SplicingScore { get; init; }
-    public byte[] SplicingMap { get; init; } = Array.Empty<byte>();
     public string SplicingMapPath { get; init; } = string.Empty;
 
     public double InpaintingScore { get; init; }
-    public byte[] InpaintingMap { get; init; } = Array.Empty<byte>();
     public string InpaintingMapPath { get; init; } = string.Empty;
 
     public double ExifScore { get; init; }

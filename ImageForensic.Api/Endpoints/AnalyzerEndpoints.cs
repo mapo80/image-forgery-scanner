@@ -18,9 +18,9 @@ public static class AnalyzerEndpoints
               .DisableAntiforgery();
     }
 
-    internal static async Task<IResult> AnalyzeImage(IFormFile image, [FromForm] ForensicsOptions? options, IForensicsAnalyzer analyzer)
+    internal static async Task<IResult> AnalyzeImage(IFormFile image, [FromForm] AnalyzeImageOptions? options, IForensicsAnalyzer analyzer)
     {
-        options ??= new ForensicsOptions();
+        options ??= new AnalyzeImageOptions();
 
         var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}{Path.GetExtension(image.FileName)}");
         await using (var stream = File.Create(tempFile))
@@ -31,19 +31,24 @@ public static class AnalyzerEndpoints
         var workDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(workDir);
 
-        var opts = options with
+        var opts = options.ToForensicsOptions() with
         {
             WorkDir = workDir,
             CopyMoveMaskDir = workDir,
             SplicingMapDir = workDir,
             NoiseprintMapDir = workDir,
-            MetadataMapDir = workDir
+            MetadataMapDir = workDir,
+            SplicingModelPath = "mantranet_256x256.onnx",
+            NoiseprintModelsDir = "ImageForensics/src/Models/onnx/noiseprint",
+            SplicingInputWidth = 256,
+            SplicingInputHeight = 256,
+            NoiseprintInputSize = 320
         };
 
         try
         {
             var result = await analyzer.AnalyzeAsync(tempFile, opts);
-            return Results.Ok(result);
+            return Results.Ok(AnalyzeImageResult.From(result));
         }
         finally
         {

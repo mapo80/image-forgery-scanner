@@ -14,20 +14,27 @@ public class AnalyzerEndpointsTests
     [Fact]
     public async Task AnalyzeImage_ReturnsResultFromAnalyzer()
     {
-        var expected = new ForensicsResult(0.1, new byte[] { 9 }, "ela.png", 0.2, new byte[] { 8 }, "mask.png")
+        var elaPath = Path.GetTempFileName();
+        var maskPath = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(elaPath, new byte[] { 9 });
+        await File.WriteAllBytesAsync(maskPath, new byte[] { 8 });
+        var expected = new ForensicsResult(0.1, elaPath, 0.2, maskPath)
         { Verdict = "ok" };
         var mock = new Mock<IForensicsAnalyzer>();
-        var options = new ForensicsOptions();
+        var options = new AnalyzeImageOptions();
         mock.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<ForensicsOptions>()))
             .ReturnsAsync(expected);
 
         await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
         var file = new FormFile(stream, 0, stream.Length, "image", "img.jpg");
         var result = await AnalyzerEndpoints.AnalyzeImage(file, options, mock.Object);
-        var ok = Assert.IsType<Ok<ForensicsResult>>(result);
-        Assert.Equal(expected, ok.Value);
-        Assert.NotEmpty(ok.Value!.ElaMap);
-        Assert.NotEmpty(ok.Value.CopyMoveMask);
+        var ok = Assert.IsType<Ok<AnalyzeImageResult>>(result);
+        var actual = ok.Value!;
+        Assert.Equal(expected.ElaScore, actual.ElaScore);
+        Assert.Equal(expected.CopyMoveScore, actual.CopyMoveScore);
+        Assert.Equal(expected.Verdict, actual.Verdict);
+        Assert.NotEmpty(actual.ElaMap);
+        Assert.NotEmpty(actual.CopyMoveMask);
         mock.Verify(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<ForensicsOptions>()), Times.Once);
     }
 }

@@ -20,7 +20,7 @@ public class DecisionEngineTests
     };
 
     private static ForensicsResult MakeResult(double score)
-        => new ForensicsResult(score, Array.Empty<byte>(), string.Empty, score, Array.Empty<byte>(), string.Empty)
+        => new ForensicsResult(score, string.Empty, score, string.Empty)
         {
             SplicingScore = score,
             InpaintingScore = score,

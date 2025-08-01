@@ -114,21 +114,15 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         var (ipScore, ipMapPath) = await ipTask;
         var (exifScore, exifAnomalies) = await exifTask;
 
-        byte[] ReadBytes(string p) => File.Exists(p) ? File.ReadAllBytes(p) : Array.Empty<byte>();
-
         var result = new ForensicsResult(
             elaScore,
-            ReadBytes(elaMapPath),
             elaMapPath,
             cmScore,
-            ReadBytes(cmMaskPath),
             cmMaskPath)
         {
             SplicingScore = spScore,
-            SplicingMap = ReadBytes(spMapPath),
             SplicingMapPath = spMapPath,
             InpaintingScore = ipScore,
-            InpaintingMap = ReadBytes(ipMapPath),
             InpaintingMapPath = ipMapPath,
             ExifScore = exifScore,
             ExifAnomalies = exifAnomalies

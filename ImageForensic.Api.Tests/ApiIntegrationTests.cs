@@ -2,6 +2,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.IO;
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -16,7 +17,11 @@ public class ApiIntegrationTests
     [Fact]
     public async Task PostAnalyze_ReturnsOkWithResult()
     {
-        var fakeResult = new ForensicsResult(0.1, new byte[] { 7 }, "ela.png", 0.2, new byte[] { 6 }, "mask.png")
+        var elaPath = Path.GetTempFileName();
+        var maskPath = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(elaPath, new byte[] { 7 });
+        await File.WriteAllBytesAsync(maskPath, new byte[] { 6 });
+        var fakeResult = new ForensicsResult(0.1, elaPath, 0.2, maskPath)
         { Verdict = "ok" };
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -34,7 +39,7 @@ public class ApiIntegrationTests
         content.Add(imageContent, "image", "img.jpg");
         var response = await client.PostAsync("/analyze", content);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<ForensicsResult>();
+        var result = await response.Content.ReadFromJsonAsync<AnalyzeImageResult>();
         Assert.NotNull(result);
         Assert.NotEmpty(result!.ElaMap);
         Assert.NotEmpty(result.CopyMoveMask);
