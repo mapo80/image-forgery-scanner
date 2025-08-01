@@ -18,11 +18,8 @@ public static class ElaAnalyzer
         using var orig = new MagickImage(imagePath);
         using var comp = orig.Clone();
         comp.Quality = quality;
-
-        using var ms = new MemoryStream();
-        comp.Write(ms, MagickFormat.Jpeg);
-        ms.Position = 0;
-        using var compReloaded = new MagickImage(ms);
+        byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
+        using var compReloaded = new MagickImage(jpeg);
 
         using var diff = new MagickImage();
         double score = orig.Compare(compReloaded, ErrorMetric.RootMeanSquared, diff);

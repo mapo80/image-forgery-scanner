@@ -19,9 +19,28 @@ public static class ExifChecker
     {
         var directories = ImageMetadataReader.ReadMetadata(imagePath);
         var anomalies = new Dictionary<string, string?>();
+        var expectedModels = expectedCameraModels as ISet<string> ?? new HashSet<string>(expectedCameraModels);
 
-        var ifd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-        var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+        ExifIfd0Directory? ifd0 = null;
+        ExifSubIfdDirectory? subIfd = null;
+        GpsDirectory? gpsDir = null;
+        Dictionary<string, string?>? tagMap = string.IsNullOrEmpty(mapDir) ? null : new();
+
+        foreach (var dir in directories)
+        {
+            if (dir is ExifIfd0Directory exif0)
+                ifd0 = exif0;
+            else if (dir is ExifSubIfdDirectory sub)
+                subIfd = sub;
+            else if (dir is GpsDirectory gps)
+                gpsDir = gps;
+
+            if (tagMap != null)
+            {
+                foreach (var t in dir.Tags)
+                    tagMap[$"{dir.Name}.{t.Name}"] = t.Description;
+            }
+        }
 
         if (subIfd == null || !subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out DateTime dto))
         {
@@ -42,12 +61,11 @@ public static class ExifChecker
         }
 
         string? model = ifd0?.GetDescription(ExifDirectoryBase.TagModel);
-        if (string.IsNullOrEmpty(model) || !expectedCameraModels.Contains(model))
+        if (string.IsNullOrEmpty(model) || !expectedModels.Contains(model))
         {
             anomalies["Model"] = model;
         }
 
-        var gpsDir = directories.OfType<GpsDirectory>().FirstOrDefault();
         var geo = gpsDir?.GetGeoLocation();
         if (geo != null)
         {
@@ -57,12 +75,9 @@ public static class ExifChecker
         double score = anomalies.Count / 4.0;
         score = Math.Clamp(score, 0.0, 1.0);
 
-        if (!string.IsNullOrEmpty(mapDir))
+        if (tagMap != null)
         {
             System.IO.Directory.CreateDirectory(mapDir);
-            var tagMap = directories
-                .SelectMany(d => d.Tags.Select(t => new KeyValuePair<string, string?>($"{d.Name}.{t.Name}", t.Description)))
-                .ToDictionary(k => k.Key, v => v.Value);
             var obj = new { Tags = tagMap, Anomalies = anomalies };
             string jsonPath = Path.Combine(mapDir, Path.GetFileNameWithoutExtension(imagePath) + "_metadata.json");
             File.WriteAllText(jsonPath, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
