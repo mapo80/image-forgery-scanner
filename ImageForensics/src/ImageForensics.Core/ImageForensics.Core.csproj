@@ -12,6 +12,7 @@
     <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
     <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.7.0" NoWarn="NU1903" />
     <PackageReference Include="System.Text.Json" Version="9.0.7" />
+    <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
