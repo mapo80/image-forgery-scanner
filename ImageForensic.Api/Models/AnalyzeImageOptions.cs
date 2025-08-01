@@ -11,16 +11,10 @@ public record AnalyzeImageOptions
     public double CopyMoveRansacReproj { get; init; } = 3.0;
     public double CopyMoveRansacProb { get; init; } = 0.99;
 
-    public int SplicingInputWidth { get; init; } = 256;
-    public int SplicingInputHeight { get; init; } = 256;
-
-    public int NoiseprintInputSize { get; init; } = 320;
-
     public string[] ExpectedCameraModels { get; init; } = new[] { "Canon EOS 80D", "Nikon D850" };
 
     public double ElaWeight { get; init; } = 1.0;
     public double CopyMoveWeight { get; init; } = 1.0;
-    public double SplicingWeight { get; init; } = 1.0;
     public double InpaintingWeight { get; init; } = 1.0;
     public double ExifWeight { get; init; } = 1.0;
 
@@ -37,13 +31,9 @@ public record AnalyzeImageOptions
         CopyMoveMatchDistance = CopyMoveMatchDistance,
         CopyMoveRansacReproj = CopyMoveRansacReproj,
         CopyMoveRansacProb = CopyMoveRansacProb,
-        SplicingInputWidth = SplicingInputWidth,
-        SplicingInputHeight = SplicingInputHeight,
-        NoiseprintInputSize = NoiseprintInputSize,
         ExpectedCameraModels = ExpectedCameraModels,
         ElaWeight = ElaWeight,
         CopyMoveWeight = CopyMoveWeight,
-        SplicingWeight = SplicingWeight,
         InpaintingWeight = InpaintingWeight,
         ExifWeight = ExifWeight,
         CleanThreshold = CleanThreshold,
