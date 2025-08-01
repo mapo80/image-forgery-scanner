@@ -56,7 +56,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.ElaQuality">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="JPEG re-save quality used for the analysis."></i>
+                        @Html.DisplayNameFor(m => m.Options.ElaQuality) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="JPEG re-save quality used for the analysis."></i>
                     </label>
                     <input class="form-control" asp-for="Options.ElaQuality" type="number" />
                 </div>
@@ -68,25 +68,25 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.CopyMoveFeatureCount">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Number of keypoints used for matching."></i>
+                        @Html.DisplayNameFor(m => m.Options.CopyMoveFeatureCount) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Number of keypoints used for matching."></i>
                     </label>
                     <input class="form-control" asp-for="Options.CopyMoveFeatureCount" type="number" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.CopyMoveMatchDistance">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Maximum distance between matched keypoints."></i>
+                        @Html.DisplayNameFor(m => m.Options.CopyMoveMatchDistance) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Maximum distance between matched keypoints."></i>
                     </label>
                     <input class="form-control" asp-for="Options.CopyMoveMatchDistance" type="number" step="0.1" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.CopyMoveRansacReproj">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="RANSAC reprojection threshold."></i>
+                        @Html.DisplayNameFor(m => m.Options.CopyMoveRansacReproj) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="RANSAC reprojection threshold."></i>
                     </label>
                     <input class="form-control" asp-for="Options.CopyMoveRansacReproj" type="number" step="0.1" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label" asp-for="Options.CopyMoveRansacProb">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="RANSAC success probability."></i>
+                        @Html.DisplayNameFor(m => m.Options.CopyMoveRansacProb) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="RANSAC success probability."></i>
                     </label>
                     <input class="form-control" asp-for="Options.CopyMoveRansacProb" type="number" step="0.01" />
                 </div>
@@ -98,7 +98,7 @@
             <div class="card-header">Metadata <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Checks for camera model anomalies in EXIF metadata."></i></div>
             <div class="card-body">
                 <label class="form-label" asp-for="Options.ExpectedCameraModels">
-                    <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Select the expected camera models."></i>
+                    @Html.DisplayNameFor(m => m.Options.ExpectedCameraModels) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Select the expected camera models."></i>
                 </label>
                 @foreach (var cam in Model.AvailableCameraModels)
                 {
@@ -116,28 +116,28 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label" asp-for="Options.ElaWeight">
-                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the ELA check."></i>
+                            @Html.DisplayNameFor(m => m.Options.ElaWeight) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the ELA check."></i>
                         </label>
                         <input class="form-range" asp-for="Options.ElaWeight" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('ElaWeightValue').textContent = this.value" />
                         <div><span id="ElaWeightValue">@Model.Options.ElaWeight</span></div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" asp-for="Options.CopyMoveWeight">
-                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the Copy-Move check."></i>
+                            @Html.DisplayNameFor(m => m.Options.CopyMoveWeight) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the Copy-Move check."></i>
                         </label>
                         <input class="form-range" asp-for="Options.CopyMoveWeight" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('CopyMoveWeightValue').textContent = this.value" />
                         <div><span id="CopyMoveWeightValue">@Model.Options.CopyMoveWeight</span></div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" asp-for="Options.InpaintingWeight">
-                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the Inpainting check."></i>
+                            @Html.DisplayNameFor(m => m.Options.InpaintingWeight) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the Inpainting check."></i>
                         </label>
                         <input class="form-range" asp-for="Options.InpaintingWeight" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('InpaintingWeightValue').textContent = this.value" />
                         <div><span id="InpaintingWeightValue">@Model.Options.InpaintingWeight</span></div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" asp-for="Options.ExifWeight">
-                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the EXIF check."></i>
+                            @Html.DisplayNameFor(m => m.Options.ExifWeight) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Weight of the EXIF check."></i>
                         </label>
                         <input class="form-range" asp-for="Options.ExifWeight" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('ExifWeightValue').textContent = this.value" />
                         <div><span id="ExifWeightValue">@Model.Options.ExifWeight</span></div>
@@ -151,14 +151,14 @@
             <div class="card-body row g-3">
                 <div class="col-md-6">
                     <label class="form-label" asp-for="Options.CleanThreshold">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Scores below this value are considered clean."></i>
+                        @Html.DisplayNameFor(m => m.Options.CleanThreshold) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Scores below this value are considered clean."></i>
                     </label>
                     <input class="form-range" asp-for="Options.CleanThreshold" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('CleanThresholdValue').textContent = this.value" />
                     <div><span id="CleanThresholdValue">@Model.Options.CleanThreshold</span></div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" asp-for="Options.TamperedThreshold">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Scores above this value indicate tampering."></i>
+                        @Html.DisplayNameFor(m => m.Options.TamperedThreshold) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Scores above this value indicate tampering."></i>
                     </label>
                     <input class="form-range" asp-for="Options.TamperedThreshold" type="range" min="0" max="1" step="0.01" oninput="document.getElementById('TamperedThresholdValue').textContent = this.value" />
                     <div><span id="TamperedThresholdValue">@Model.Options.TamperedThreshold</span></div>
@@ -187,7 +187,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" asp-for="Options.MaxParallelChecks">
-                        <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Maximum number of checks to run in parallel."></i>
+                        @Html.DisplayNameFor(m => m.Options.MaxParallelChecks) <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Maximum number of checks to run in parallel."></i>
                     </label>
                     <input class="form-control" asp-for="Options.MaxParallelChecks" type="number" />
                 </div>
