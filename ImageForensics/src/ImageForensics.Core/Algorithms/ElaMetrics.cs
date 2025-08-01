@@ -3,30 +3,45 @@ using System.Linq;
 using ImageMagick;
 using MathNet.Numerics.Statistics;
 using MathNet.Numerics.Distributions;
+using OpenCvSharp;
 
 namespace ImageForensics.Core.Algorithms;
 
 public static class ElaMetrics
 {
-    /// <summary>
-    /// Generates the ELA heat-map for a given image.
-    /// </summary>
-    /// <param name="img">Magick image input.</param>
-    /// <param name="jpegQuality">JPEG quality for recompression.</param>
-    /// <returns>2D float array normalised to [0,1].</returns>
-    public static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90)
+    public enum ElaAggregation
     {
-        using var orig = img.Clone();
-        using var comp = img.Clone();
+        Max,
+        Mean,
+        Median
+    }
+
+    /// <summary>
+    /// Generates the ELA heat-map for a given image applying an optional Laplacian
+    /// high-pass filter before JPEG recompression.
+    /// </summary>
+    public static float[,] ComputeElaMap(MagickImage img, int jpegQuality = 90, bool highPass = true)
+    {
+        using var pre = img.Clone();
+        if (highPass)
+        {
+            byte[] bmp = pre.ToByteArray(MagickFormat.Bmp);
+            using var mat = Cv2.ImDecode(bmp, ImreadModes.Color);
+            using var lap = new Mat();
+            Cv2.Laplacian(mat, lap, mat.Type());
+            Cv2.ImEncode(".bmp", lap, out var lapBytes);
+            pre.Read(lapBytes);
+        }
+        using var comp = pre.Clone();
         comp.Quality = jpegQuality;
         byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
         using var rec = new MagickImage(jpeg);
 
-        int w = orig.Width;
-        int h = orig.Height;
+        int w = pre.Width;
+        int h = pre.Height;
         var map = new float[w, h];
         double max = 0;
-        using var origPixels = orig.GetPixels();
+        using var origPixels = pre.GetPixels();
         using var recPixels = rec.GetPixels();
         for (int y = 0; y < h; y++)
         {
@@ -50,6 +65,116 @@ public static class ElaMetrics
                     map[x, y] *= scale;
         }
         return map;
+    }
+
+    /// <summary>
+    /// Computes ELA maps for multiple JPEG qualities and aggregates them.
+    /// </summary>
+    public static float[,] ComputeElaMapMulti(MagickImage img, int[] qualities, ElaAggregation agg = ElaAggregation.Max)
+    {
+        var maps = qualities.Select(q => ComputeElaMap(img, q)).ToArray();
+        int w = maps[0].GetLength(0);
+        int h = maps[0].GetLength(1);
+        var result = new float[w, h];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                if (agg == ElaAggregation.Mean)
+                {
+                    float sum = 0;
+                    foreach (var m in maps) sum += m[x, y];
+                    result[x, y] = sum / maps.Length;
+                }
+                else if (agg == ElaAggregation.Median)
+                {
+                    var vals = maps.Select(m => m[x, y]).OrderBy(v => v).ToArray();
+                    result[x, y] = vals[vals.Length / 2];
+                }
+                else
+                {
+                    float max = 0;
+                    foreach (var m in maps) if (m[x, y] > max) max = m[x, y];
+                    result[x, y] = max;
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Applies robust z-score normalization with optional logarithmic scaling.
+    /// </summary>
+    public static void RobustNormalize(float[,] map, double? alphaLog = null)
+    {
+        var flat = FlattenEla(map);
+        double median = flat.Median();
+        var abs = flat.Select(v => Math.Abs(v - median)).ToArray();
+        double mad = abs.Median();
+        if (mad == 0) mad = 1e-6;
+        int w = map.GetLength(0);
+        int h = map.GetLength(1);
+        double min = double.MaxValue, max = double.MinValue;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                double z = (map[x, y] - median) / mad;
+                if (alphaLog.HasValue)
+                    z = Math.Log(1 + alphaLog.Value * Math.Abs(z));
+                map[x, y] = (float)z;
+                if (z < min) min = z;
+                if (z > max) max = z;
+            }
+        }
+        if (max > min)
+        {
+            float scale = (float)(1.0 / (max - min));
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    map[x, y] = (float)((map[x, y] - min) * scale);
+        }
+    }
+
+    /// <summary>
+    /// Performs a simple morphological opening (dilation then erosion).
+    /// </summary>
+    public static void MorphologicalOpening(float[,] map, int iterations = 1)
+    {
+        int w = map.GetLength(0);
+        int h = map.GetLength(1);
+        var tmp = new float[w, h];
+        for (int it = 0; it < iterations; it++)
+        {
+            // dilation
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float max = 0;
+                    for (int j = -1; j <= 1; j++)
+                        for (int i = -1; i <= 1; i++)
+                        {
+                            int nx = x + i, ny = y + j;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h)
+                                if (map[nx, ny] > max) max = map[nx, ny];
+                        }
+                    tmp[x, y] = max;
+                }
+            // erosion
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    float min = float.MaxValue;
+                    for (int j = -1; j <= 1; j++)
+                        for (int i = -1; i <= 1; i++)
+                        {
+                            int nx = x + i, ny = y + j;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h)
+                                if (tmp[nx, ny] < min) min = tmp[nx, ny];
+                        }
+                    map[x, y] = min;
+                }
+        }
     }
 
     static double[] FlattenMask(byte[,] mask)
@@ -213,6 +338,59 @@ public static class ElaMetrics
         return mask;
     }
 
+    /// <summary>
+    /// Computes a global percentile threshold on the ELA map.
+    /// </summary>
+    public static double ComputePercentileThreshold(float[,] elaMap, double percentile)
+    {
+        var arr = FlattenEla(elaMap).OrderBy(v => v).ToArray();
+        double pos = percentile * (arr.Length - 1);
+        int idx = (int)pos;
+        double frac = pos - idx;
+        if (idx >= arr.Length - 1) return arr[^1];
+        return arr[idx] * (1 - frac) + arr[idx + 1] * frac;
+    }
+
+    /// <summary>
+    /// Adaptive thresholding using OpenCvSharp's AdaptiveThreshold.
+    /// </summary>
+    public static bool[,] AdaptiveThreshold(float[,] elaMap, int blockSize = 31, double c = 0.01)
+    {
+        int w = elaMap.GetLength(0);
+        int h = elaMap.GetLength(1);
+        using var mat = new Mat(h, w, MatType.CV_8UC1);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                mat.Set(y, x, (byte)(Math.Clamp(elaMap[x, y], 0, 1) * 255));
+        using var bin = new Mat();
+        Cv2.AdaptiveThreshold(mat, bin, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, blockSize, c);
+        var mask = new bool[w, h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                mask[x, y] = bin.Get<byte>(y, x) > 0;
+        return mask;
+    }
+
+    /// <summary>
+    /// Finds the threshold that maximises the F1 score on a validation mask.
+    /// </summary>
+    public static double ComputeBestF1Threshold(byte[,] mask, float[,] elaMap, int steps = 100)
+    {
+        double bestT = 0, bestF1 = 0;
+        for (int i = 0; i <= steps; i++)
+        {
+            double t = i / (double)steps;
+            var pred = BinarizeElaMap(elaMap, t);
+            double f1 = ComputeDicePixel(mask, pred);
+            if (f1 > bestF1)
+            {
+                bestF1 = f1;
+                bestT = t;
+            }
+        }
+        return bestT;
+    }
+
     public static double ComputeIoUPixel(byte[,] mask, bool[,] predMask)
     {
         double tp = 0, fp = 0, fn = 0;
@@ -266,5 +444,46 @@ public static class ElaMetrics
             }
         double denom = Math.Sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn));
         return denom == 0 ? 0 : (tp * tn - fp * fn) / denom;
+    }
+
+    /// <summary>
+    /// Computes the Boundary F1 score using Canny edges with a tolerance of 2 pixels.
+    /// </summary>
+    public static double ComputeBoundaryF1(byte[,] mask, bool[,] predMask)
+    {
+        int w = mask.GetLength(0);
+        int h = mask.GetLength(1);
+        using var gt = new Mat(h, w, MatType.CV_8UC1);
+        using var pr = new Mat(h, w, MatType.CV_8UC1);
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                gt.Set(y, x, mask[x, y] > 0 ? (byte)255 : (byte)0);
+                pr.Set(y, x, predMask[x, y] ? (byte)255 : (byte)0);
+            }
+        using var gtEdges = new Mat();
+        using var prEdges = new Mat();
+        Cv2.Canny(gt, gtEdges, 100, 200);
+        Cv2.Canny(pr, prEdges, 100, 200);
+        var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(5, 5));
+        using var gtDil = new Mat();
+        using var prDil = new Mat();
+        Cv2.Dilate(gtEdges, gtDil, kernel, iterations: 2);
+        Cv2.Dilate(prEdges, prDil, kernel, iterations: 2);
+        using var tpMat = new Mat();
+        Cv2.BitwiseAnd(gtEdges, prDil, tpMat);
+        using var fpMat = new Mat();
+        using var notGtDil = new Mat();
+        Cv2.BitwiseNot(gtDil, notGtDil);
+        Cv2.BitwiseAnd(prEdges, notGtDil, fpMat);
+        using var fnMat = new Mat();
+        using var notPrDil = new Mat();
+        Cv2.BitwiseNot(prDil, notPrDil);
+        Cv2.BitwiseAnd(gtEdges, notPrDil, fnMat);
+        double tp = Cv2.CountNonZero(tpMat);
+        double fp = Cv2.CountNonZero(fpMat);
+        double fn = Cv2.CountNonZero(fnMat);
+        double denom = 2 * tp + fp + fn;
+        return denom == 0 ? 0 : 2 * tp / denom;
     }
 }

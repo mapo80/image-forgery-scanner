@@ -20,8 +20,8 @@ string maskDir = Path.Combine(datasetRoot, "images", "mask");
 
 var files = Directory.GetFiles(tamperedDir).OrderBy(f => f).ToArray();
 var sb = new StringBuilder();
-sb.AppendLine("| Immagine    | RocAuc | Prauc | NSS  | IoU   | Dice  | MCC   |");
-sb.AppendLine("|-------------|--------|-------|------|-------|-------|-------|");
+sb.AppendLine("| Immagine    | RocAuc | Prauc | NSS  | IoU   | Dice  | MCC   | BF1  |");
+sb.AppendLine("|-------------|--------|-------|------|-------|-------|-------|------|");
 foreach (var imgPath in files)
 {
     string name = Path.GetFileName(imgPath);
@@ -30,15 +30,18 @@ foreach (var imgPath in files)
     using var img = new MagickImage(imgPath);
     using var maskImg = new MagickImage(maskPath);
     var mask = LoadMask(maskImg);
-    var ela = ElaMetrics.ComputeElaMap(img);
+    var ela = ElaMetrics.ComputeElaMapMulti(img, new[] { 80, 90, 95 });
+    ElaMetrics.MorphologicalOpening(ela);
+    ElaMetrics.RobustNormalize(ela, alphaLog: 1.0);
     double roc = ElaMetrics.ComputeRocAucPixel(mask, ela);
     double pr = ElaMetrics.ComputePraucPixel(mask, ela);
     double nss = ElaMetrics.ComputeNss(mask, ela);
-    double thr = ElaMetrics.ComputeOtsuThreshold(ela);
+    double thr = ElaMetrics.ComputeBestF1Threshold(mask, ela);
     var pred = ElaMetrics.BinarizeElaMap(ela, thr);
     double iou = ElaMetrics.ComputeIoUPixel(mask, pred);
     double dice = ElaMetrics.ComputeDicePixel(mask, pred);
     double mcc = ElaMetrics.ComputeMccPixel(mask, pred);
-    sb.AppendLine($"| {name} | {roc:F2} | {pr:F2} | {nss:F2} | {iou:F2} | {dice:F2} | {mcc:F2} |");
+    double bf1 = ElaMetrics.ComputeBoundaryF1(mask, pred);
+    sb.AppendLine($"| {name} | {roc:F2} | {pr:F2} | {nss:F2} | {iou:F2} | {dice:F2} | {mcc:F2} | {bf1:F2} |");
 }
 File.WriteAllText(Path.Combine(datasetRoot, "..", "..", "ela-metrics-table.md"), sb.ToString());
