@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -28,11 +29,10 @@ public class IndexModel : PageModel
 
     public string ElaMapBase64 { get; private set; } = string.Empty;
     public string CopyMoveMapBase64 { get; private set; } = string.Empty;
-    public string SplicingMapBase64 { get; private set; } = string.Empty;
     public string InpaintingMapBase64 { get; private set; } = string.Empty;
 
-    public double DefaultCleanThreshold => new AnalyzeImageOptionsForm().CleanThreshold;
-    public double DefaultTamperedThreshold => new AnalyzeImageOptionsForm().TamperedThreshold;
+    public AnalyzeImageOptionsForm DefaultOptions { get; } = new();
+    public List<string> AvailableCameraModels { get; } = new() { "Canon EOS 80D", "Nikon D850" };
 
     public string SpiegaPunteggio(double punteggio)
     {
@@ -61,8 +61,6 @@ public class IndexModel : PageModel
         {
             WorkDir = workDir,
             CopyMoveMaskDir = workDir,
-            SplicingMapDir = workDir,
-            NoiseprintMapDir = workDir,
             MetadataMapDir = workDir
         };
 
@@ -72,7 +70,6 @@ public class IndexModel : PageModel
             Result = AnalyzeImageResult.From(res);
             ElaMapBase64 = Convert.ToBase64String(Result.ElaMap);
             CopyMoveMapBase64 = Convert.ToBase64String(Result.CopyMoveMask);
-            SplicingMapBase64 = Convert.ToBase64String(Result.SplicingMap);
             InpaintingMapBase64 = Convert.ToBase64String(Result.InpaintingMap);
         }
         catch (Exception ex)
@@ -90,65 +87,52 @@ public class IndexModel : PageModel
 
     public class AnalyzeImageOptionsForm
     {
-        [Display(Name = "Qualità ELA")]
+        [Display(Name = "ELA quality")]
         public int ElaQuality { get; set; } = 75;
 
-        [Display(Name = "Numero caratteristiche copia e sposta")]
+        [Display(Name = "Copy-Move feature count")]
         public int CopyMoveFeatureCount { get; set; } = 5000;
 
-        [Display(Name = "Distanza corrispondenza copia e sposta")]
+        [Display(Name = "Copy-Move match distance")]
         public double CopyMoveMatchDistance { get; set; } = 3.0;
 
-        [Display(Name = "RANSAC reproiezione copia e sposta")]
+        [Display(Name = "Copy-Move RANSAC reprojection")]
         public double CopyMoveRansacReproj { get; set; } = 3.0;
 
-        [Display(Name = "Probabilità RANSAC copia e sposta")]
+        [Display(Name = "Copy-Move RANSAC probability")]
         public double CopyMoveRansacProb { get; set; } = 0.99;
 
-        [Display(Name = "Larghezza input giunzione")]
-        public int SplicingInputWidth { get; set; } = 256;
+        [Display(Name = "Expected camera models")]
+        public List<string> ExpectedCameraModels { get; set; } = new() { "Canon EOS 80D", "Nikon D850" };
 
-        [Display(Name = "Altezza input giunzione")]
-        public int SplicingInputHeight { get; set; } = 256;
-
-        [Display(Name = "Dimensione input rumore")]
-        public int NoiseprintInputSize { get; set; } = 320;
-
-        [Display(Name = "Modelli fotocamera attesi")]
-        public string ExpectedCameraModels { get; set; } = "Canon EOS 80D,Nikon D850";
-
-        [Display(Name = "Peso ELA")]
+        [Display(Name = "ELA weight")]
         public double ElaWeight { get; set; } = 1.0;
 
-        [Display(Name = "Peso copia e sposta")]
+        [Display(Name = "Copy-Move weight")]
         public double CopyMoveWeight { get; set; } = 1.0;
 
-        [Display(Name = "Peso giunzione")]
-        public double SplicingWeight { get; set; } = 1.0;
-
-        [Display(Name = "Peso riempimento")]
+        [Display(Name = "Inpainting weight")]
         public double InpaintingWeight { get; set; } = 1.0;
 
-        [Display(Name = "Peso EXIF")]
+        [Display(Name = "Metadata weight")]
         public double ExifWeight { get; set; } = 1.0;
 
-        [Display(Name = "Soglia pulita")]
+        [Display(Name = "Clean threshold")]
         public double CleanThreshold { get; set; } = 0.2;
 
-        [Display(Name = "Soglia manomessa")]
+        [Display(Name = "Tampered threshold")]
         public double TamperedThreshold { get; set; } = 0.8;
 
-        [Display(Name = "Controlli abilitati")]
-        public string EnabledChecks { get; set; } = "Ela,CopyMove,Splicing,Inpainting,Exif";
+        [Display(Name = "Enabled checks")]
+        public List<string> EnabledChecks { get; set; } = new() { "Ela", "CopyMove", "Inpainting", "Exif" };
 
-        [Display(Name = "Numero massimo controlli paralleli")]
+        [Display(Name = "Max parallel checks")]
         public int MaxParallelChecks { get; set; } = 1;
 
         public AnalyzeImageOptions ToOptions()
         {
-            var enabled = EnabledChecks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var flags = ForensicsCheck.None;
-            foreach (var e in enabled)
+            foreach (var e in EnabledChecks)
                 flags |= Enum.Parse<ForensicsCheck>(e, true);
 
             return new AnalyzeImageOptions
@@ -158,13 +142,9 @@ public class IndexModel : PageModel
                 CopyMoveMatchDistance = CopyMoveMatchDistance,
                 CopyMoveRansacReproj = CopyMoveRansacReproj,
                 CopyMoveRansacProb = CopyMoveRansacProb,
-                SplicingInputWidth = SplicingInputWidth,
-                SplicingInputHeight = SplicingInputHeight,
-                NoiseprintInputSize = NoiseprintInputSize,
-                ExpectedCameraModels = ExpectedCameraModels.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+                ExpectedCameraModels = ExpectedCameraModels.ToArray(),
                 ElaWeight = ElaWeight,
                 CopyMoveWeight = CopyMoveWeight,
-                SplicingWeight = SplicingWeight,
                 InpaintingWeight = InpaintingWeight,
                 ExifWeight = ExifWeight,
                 CleanThreshold = CleanThreshold,
