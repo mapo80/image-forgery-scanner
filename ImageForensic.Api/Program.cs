@@ -15,8 +15,9 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddAntDesign();
 
+// Register an HttpClient that points to the app's base URI so that
+// Razor components can issue relative HTTP requests without errors.
 builder.Services.AddHttpClient();
-
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetRequiredService<NavigationManager>();
