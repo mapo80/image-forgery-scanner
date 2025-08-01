@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Concurrent;
 using OpenCvSharp;
 using OpenCvSharp.Features2D;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms;
 
@@ -18,6 +19,7 @@ public static class CopyMoveDetector
         double ransacReprojThresh,
         double ransacConfidence)
     {
+        Log.Information("Copy-move analysis for {Image}", imagePath);
         Directory.CreateDirectory(maskDir);
         string baseName = Path.GetFileNameWithoutExtension(imagePath);
         string maskPath = Path.Combine(maskDir, $"{baseName}_copymove.png");
@@ -76,6 +78,7 @@ public static class CopyMoveDetector
 
         Cv2.ImWrite(maskPath, mask);
         double score = inlierCount / (double)matches.Length;
+        Log.Information("Copy-move completed for {Image}: {Score}", imagePath, score);
         return (score, maskPath);
     }
 }

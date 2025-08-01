@@ -8,6 +8,7 @@ using OpenCvSharp;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System.Diagnostics;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms
 {
@@ -38,6 +39,7 @@ namespace ImageForensics.Core.Algorithms
                 Directory.CreateDirectory(mapDir);
 
             var sw = Stopwatch.StartNew();
+            Log.Information("Splicing analysis for {Image}", imagePath);
 
             // 1) Load & preprocess
             Mat img = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -73,9 +75,8 @@ namespace ImageForensics.Core.Algorithms
             Cv2.ImWrite(outPath, heat);
 
             sw.Stop();
-            Console.WriteLine($"Splicing detection time for {baseName}: {sw.ElapsedMilliseconds} ms");
-
             double score = Cv2.Mean(heat)[0] / 255.0;
+            Log.Information("Splicing completed for {Image} in {Elapsed} ms: {Score}", imagePath, sw.ElapsedMilliseconds, score);
             return (score, outPath);
         }
     }

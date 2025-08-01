@@ -1,4 +1,5 @@
 using ImageForensics.Core.Models;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms;
 
@@ -23,6 +24,7 @@ public static class DecisionEngine
                 ? "Suspicious"
                 : "Tampered";
 
+        Log.Information("Decision engine verdict {Verdict} with score {Score}", verdict, score);
         return (score, verdict);
     }
 }
