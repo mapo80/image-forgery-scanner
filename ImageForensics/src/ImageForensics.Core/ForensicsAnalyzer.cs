@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -29,6 +30,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Directory.CreateDirectory(options.WorkDir);
 
         var semaphore = new SemaphoreSlim(Math.Max(1, options.MaxParallelChecks));
+        var errors = new ConcurrentDictionary<string, string>();
 
         Task<T> RunAsync<T>(Func<T> func, T defaultValue, string checkName) => Task.Run(() =>
         {
@@ -43,6 +45,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             catch (Exception ex)
             {
                 Log.Error(ex, "{Check} failed", checkName);
+                errors[checkName] = ex.Message;
                 return defaultValue;
             }
             finally
@@ -174,7 +177,8 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             InpaintingScore = ipScore,
             InpaintingMapPath = ipMapPath,
             ExifScore = exifScore,
-            ExifAnomalies = exifAnomalies
+            ExifAnomalies = exifAnomalies,
+            Errors = new Dictionary<string, string>(errors)
         };
 
         var effectiveOptions = options with

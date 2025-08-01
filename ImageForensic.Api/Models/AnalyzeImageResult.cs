@@ -20,6 +20,8 @@ public record AnalyzeImageResult(
     public double ExifScore { get; init; }
     public IReadOnlyDictionary<string, string?> ExifAnomalies { get; init; } = new Dictionary<string, string?>();
 
+    public IReadOnlyDictionary<string, string> Errors { get; init; } = new Dictionary<string, string>();
+
     public double TotalScore { get; init; }
     public string Verdict { get; init; } = string.Empty;
 
@@ -39,6 +41,7 @@ public record AnalyzeImageResult(
             InpaintingMap = ReadBytes(result.InpaintingMapPath),
             ExifScore = result.ExifScore,
             ExifAnomalies = result.ExifAnomalies,
+            Errors = result.Errors,
             TotalScore = result.TotalScore,
             Verdict = result.Verdict
         };

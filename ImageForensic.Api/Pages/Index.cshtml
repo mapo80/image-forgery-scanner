@@ -178,6 +178,18 @@
                 </tbody>
             </table>
         </div>
+        @if (Model.Result.Errors.Count > 0)
+        {
+            <div class="alert alert-warning">
+                <h3>Errori dei controlli</h3>
+                <ul class="mb-0">
+                @foreach (var kv in Model.Result.Errors)
+                {
+                    <li><strong>@kv.Key</strong>: @kv.Value</li>
+                }
+                </ul>
+            </div>
+        }
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="card h-100">

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using ImageForensic.Api;
 using ImageForensics.Core;
 using ImageForensics.Core.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -46,7 +47,7 @@ public class DatasetImageTests
     [Fact]
     public async Task ApiAnalyze_ReturnsElaMap_ForDatasetImage()
     {
-        var factory = new WebApplicationFactory<Program>();
+        var factory = new WebApplicationFactory<global::Program>();
         var client = factory.CreateClient();
         using var content = new MultipartFormDataContent();
         var bytes = await File.ReadAllBytesAsync(GetDatasetImagePath());
@@ -57,7 +58,7 @@ public class DatasetImageTests
 
         var response = await client.PostAsync("/analyze", content);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<AnalyzeImageResult>();
+        var result = await response.Content.ReadFromJsonAsync<ImageForensic.Api.AnalyzeImageResult>();
         Assert.NotNull(result);
         Assert.NotEmpty(result!.ElaMap);
     }
