@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenCvSharp;
 using Serilog;
@@ -59,7 +60,25 @@ public static class NoiseprintSdkWrapper
         data.AsSpan().CopyTo(tensor.Buffer.Span);
 
         Log.Debug("Running NoisePrint inference");
-        float[] output = NoisePrintSdk.RunInference(modelPath, tensor);
+        float[] output;
+        try
+        {
+            var task = Task.Run(() => NoisePrintSdk.RunInference(modelPath, tensor));
+            const int timeoutSeconds = 30;
+            if (!task.Wait(TimeSpan.FromSeconds(timeoutSeconds)))
+            {
+                Log.Error("NoisePrint inference exceeded {Timeout}s timeout", timeoutSeconds);
+                throw new TimeoutException($"NoisePrint inference exceeded {timeoutSeconds}s timeout");
+            }
+
+            output = task.Result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "NoisePrint inference failed");
+            throw;
+        }
+
         Log.Debug("Inference produced {Length} values", output.Length);
         int side = (int)Math.Sqrt(output.Length);
         using Mat heat = new(side, side, MatType.CV_32FC1);
