@@ -1,5 +1,6 @@
 using System.IO;
 using ImageMagick;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms;
 
@@ -10,6 +11,7 @@ public static class ElaAnalyzer
         string workDir,
         int quality)
     {
+        Log.Information("ELA analysis for {Image} with quality {Quality}", imagePath, quality);
         Directory.CreateDirectory(workDir);
 
         string baseName = Path.GetFileNameWithoutExtension(imagePath);
@@ -26,6 +28,7 @@ public static class ElaAnalyzer
         diff.Depth = 8;
         diff.Write(mapPath, MagickFormat.Png);
 
+        Log.Information("ELA analysis completed for {Image}: {Score}", imagePath, score);
         return (score, mapPath);
     }
 }

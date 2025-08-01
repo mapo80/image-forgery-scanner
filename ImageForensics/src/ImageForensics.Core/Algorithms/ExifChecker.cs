@@ -7,6 +7,7 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Iptc;
 using MetadataExtractor.Formats.Xmp;
+using Serilog;
 
 namespace ImageForensics.Core.Algorithms;
 
@@ -17,6 +18,7 @@ public static class ExifChecker
         string mapDir,
         IReadOnlyList<string> expectedCameraModels)
     {
+        Log.Information("EXIF analysis for {Image}", imagePath);
         var directories = ImageMetadataReader.ReadMetadata(imagePath);
         var anomalies = new Dictionary<string, string?>();
         var expectedModels = expectedCameraModels as ISet<string> ?? new HashSet<string>(expectedCameraModels);
@@ -74,6 +76,7 @@ public static class ExifChecker
 
         double score = anomalies.Count / 4.0;
         score = Math.Clamp(score, 0.0, 1.0);
+        Log.Information("EXIF analysis completed for {Image}: {Score} anomalies {Count}", imagePath, score, anomalies.Count);
 
         if (tagMap != null)
         {
