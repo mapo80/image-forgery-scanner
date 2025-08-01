@@ -20,6 +20,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
     static ForensicsAnalyzer()
     {
         Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
             .WriteTo.Console()
             .CreateLogger();
     }

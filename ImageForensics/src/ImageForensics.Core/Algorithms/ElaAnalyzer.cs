@@ -17,14 +17,20 @@ public static class ElaAnalyzer
         string baseName = Path.GetFileNameWithoutExtension(imagePath);
         string mapPath = Path.Combine(workDir, $"{baseName}_ela.png");
 
+        Log.Debug("Loading original image {Image}", imagePath);
         using var orig = new MagickImage(imagePath);
+        Log.Debug("Cloning image and setting quality to {Quality}", quality);
         using var comp = orig.Clone();
         comp.Quality = quality;
+        Log.Debug("Encoding image to JPEG");
         byte[] jpeg = comp.ToByteArray(MagickFormat.Jpeg);
+        Log.Debug("Reloading compressed image for comparison");
         using var compReloaded = new MagickImage(jpeg);
 
+        Log.Debug("Comparing images to generate ELA diff");
         using var diff = new MagickImage();
         double score = orig.Compare(compReloaded, ErrorMetric.RootMeanSquared, diff);
+        Log.Debug("Writing diff map to {MapPath}", mapPath);
         diff.Depth = 8;
         diff.Write(mapPath, MagickFormat.Png);
 

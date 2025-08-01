@@ -20,6 +20,7 @@ public static class ExifChecker
     {
         Log.Information("EXIF analysis for {Image}", imagePath);
         var directories = ImageMetadataReader.ReadMetadata(imagePath);
+        Log.Debug("Parsed {Count} metadata directories", directories.Count);
         var anomalies = new Dictionary<string, string?>();
         var expectedModels = expectedCameraModels as ISet<string> ?? new HashSet<string>(expectedCameraModels);
 
@@ -47,10 +48,12 @@ public static class ExifChecker
         if (subIfd == null || !subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out DateTime dto))
         {
             anomalies["DateTimeOriginal"] = null;
+            Log.Debug("DateTimeOriginal missing or invalid");
         }
         else if (dto > DateTime.UtcNow)
         {
             anomalies["DateTimeOriginal"] = dto.ToString("o");
+            Log.Debug("DateTimeOriginal in the future: {Value}", dto);
         }
 
         string? software = ifd0?.GetDescription(ExifDirectoryBase.TagSoftware);
@@ -60,18 +63,21 @@ public static class ExifChecker
              software.Contains("Photoshop", StringComparison.OrdinalIgnoreCase)))
         {
             anomalies["Software"] = software;
+            Log.Debug("Suspicious software tag {Software}", software);
         }
 
         string? model = ifd0?.GetDescription(ExifDirectoryBase.TagModel);
         if (string.IsNullOrEmpty(model) || !expectedModels.Contains(model))
         {
             anomalies["Model"] = model;
+            Log.Debug("Unexpected camera model {Model}", model);
         }
 
         var geo = gpsDir?.GetGeoLocation();
         if (geo != null)
         {
             anomalies["GPS"] = geo.ToString();
+            Log.Debug("GPS data present {GPS}", geo);
         }
 
         double score = anomalies.Count / 4.0;
