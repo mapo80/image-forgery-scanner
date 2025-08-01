@@ -202,7 +202,7 @@
                 <FormItem Required Name="EnabledChecks">
                     <LabelTemplate>@BuildLabel("Controlli", "Elenco di controlli abilitati (ela,copymove,splicing,inpainting,exif)")</LabelTemplate>
                     <ChildContent>
-                        <AntDesign.Input @bind-Value="enabledChecks" />
+                        <AntDesign.Input @bind-Value="model.EnabledChecks" />
                     </ChildContent>
                 </FormItem>
             </Col>
@@ -282,7 +282,6 @@
     private string? copyMoveMap;
     private string? splicingMap;
     private string? inpaintingMap;
-    private string enabledChecks = "Ela,CopyMove,Splicing,Inpainting,Exif";
 
     protected override void OnInitialized()
     {
@@ -321,7 +320,7 @@
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(image.OpenReadStream(long.MaxValue)), "image", image.Name);
 
-        var opts = model.ToOptions(enabledChecks);
+        var opts = model.ToOptions();
         content.Add(new StringContent(opts.ElaQuality.ToString(System.Globalization.CultureInfo.InvariantCulture)), nameof(opts.ElaQuality));
         content.Add(new StringContent(opts.CopyMoveFeatureCount.ToString()), nameof(opts.CopyMoveFeatureCount));
         content.Add(new StringContent(opts.CopyMoveMatchDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)), nameof(opts.CopyMoveMatchDistance));
@@ -372,11 +371,12 @@
         [Required] public double CleanThreshold { get; set; } = 0.2;
         [Required] public double TamperedThreshold { get; set; } = 0.8;
         [Required] public int MaxParallelChecks { get; set; } = 1;
+        [Required] public string EnabledChecks { get; set; } = "Ela,CopyMove,Splicing,Inpainting,Exif";
 
-        public AnalyzeImageOptions ToOptions(string checks)
+        public AnalyzeImageOptions ToOptions()
         {
-            var enabled = checks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                                 .Aggregate(ForensicsCheck.None, (a, c) => a | Enum.Parse<ForensicsCheck>(c, true));
+            var enabled = EnabledChecks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                       .Aggregate(ForensicsCheck.None, (a, c) => a | Enum.Parse<ForensicsCheck>(c, true));
             return new AnalyzeImageOptions
             {
                 ElaQuality = ElaQuality,
