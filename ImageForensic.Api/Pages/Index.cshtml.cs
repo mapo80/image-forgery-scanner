@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -28,6 +29,18 @@ public class IndexModel : PageModel
     public string CopyMoveMapBase64 { get; private set; } = string.Empty;
     public string SplicingMapBase64 { get; private set; } = string.Empty;
     public string InpaintingMapBase64 { get; private set; } = string.Empty;
+
+    public double DefaultCleanThreshold => new AnalyzeImageOptionsForm().CleanThreshold;
+    public double DefaultTamperedThreshold => new AnalyzeImageOptionsForm().TamperedThreshold;
+
+    public string SpiegaPunteggio(double punteggio)
+    {
+        if (punteggio < Options.CleanThreshold)
+            return $"Inferiore alla soglia di pulizia ({Options.CleanThreshold:F2}): il controllo non evidenzia manipolazioni.";
+        if (punteggio > Options.TamperedThreshold)
+            return $"Superiore alla soglia di manomissione ({Options.TamperedThreshold:F2}): il controllo suggerisce manomissioni.";
+        return $"Tra le soglie ({Options.CleanThreshold:F2}-{Options.TamperedThreshold:F2}): il risultato è incerto.";
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {
@@ -72,23 +85,58 @@ public class IndexModel : PageModel
 
     public class AnalyzeImageOptionsForm
     {
+        [Display(Name = "Qualità ELA")]
         public int ElaQuality { get; set; } = 75;
+
+        [Display(Name = "Numero caratteristiche copia e sposta")]
         public int CopyMoveFeatureCount { get; set; } = 5000;
+
+        [Display(Name = "Distanza corrispondenza copia e sposta")]
         public double CopyMoveMatchDistance { get; set; } = 3.0;
+
+        [Display(Name = "RANSAC reproiezione copia e sposta")]
         public double CopyMoveRansacReproj { get; set; } = 3.0;
+
+        [Display(Name = "Probabilità RANSAC copia e sposta")]
         public double CopyMoveRansacProb { get; set; } = 0.99;
+
+        [Display(Name = "Larghezza input giunzione")]
         public int SplicingInputWidth { get; set; } = 256;
+
+        [Display(Name = "Altezza input giunzione")]
         public int SplicingInputHeight { get; set; } = 256;
+
+        [Display(Name = "Dimensione input rumore")]
         public int NoiseprintInputSize { get; set; } = 320;
+
+        [Display(Name = "Modelli fotocamera attesi")]
         public string ExpectedCameraModels { get; set; } = "Canon EOS 80D,Nikon D850";
+
+        [Display(Name = "Peso ELA")]
         public double ElaWeight { get; set; } = 1.0;
+
+        [Display(Name = "Peso copia e sposta")]
         public double CopyMoveWeight { get; set; } = 1.0;
+
+        [Display(Name = "Peso giunzione")]
         public double SplicingWeight { get; set; } = 1.0;
+
+        [Display(Name = "Peso riempimento")]
         public double InpaintingWeight { get; set; } = 1.0;
+
+        [Display(Name = "Peso EXIF")]
         public double ExifWeight { get; set; } = 1.0;
+
+        [Display(Name = "Soglia pulita")]
         public double CleanThreshold { get; set; } = 0.2;
+
+        [Display(Name = "Soglia manomessa")]
         public double TamperedThreshold { get; set; } = 0.8;
+
+        [Display(Name = "Controlli abilitati")]
         public string EnabledChecks { get; set; } = "Ela,CopyMove,Splicing,Inpainting,Exif";
+
+        [Display(Name = "Numero massimo controlli paralleli")]
         public int MaxParallelChecks { get; set; } = 1;
 
         public AnalyzeImageOptions ToOptions()
