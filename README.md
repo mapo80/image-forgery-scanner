@@ -558,3 +558,18 @@ dotnet run --project ElaSegmentation.Cmd \
 |------|-----------|---------|------------|--------|---------|--------|-------|--------|-------|
 | 1 | 0.10 | 50 | 3 | 0.16 | 0.23 | 0.21 | 0.21 | 0.25 | 0.23 |
 
+
+## Esecuzione
+```bash
+dotnet run --project ElaSegmentation.Cmd \
+  --imagesDir ./images \
+  --masksDir ./masks \
+  --jpegQuality 90 \
+  --sauvolaWindow 15 \
+  --sauvolaK 0.2 \
+  --blocksX 4 \
+  --blocksY 4 \
+  --minArea 100 \
+  --kernelSize 5
+```
+`report.md` and any generated `.base64` files can be committed alongside the code.
