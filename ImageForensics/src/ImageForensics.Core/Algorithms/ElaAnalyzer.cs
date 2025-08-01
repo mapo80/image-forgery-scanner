@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using ImageMagick;
 using Serilog;
@@ -23,19 +24,42 @@ public static class ElaAnalyzer
         using var comp = orig.Clone();
         comp.Quality = quality;
         comp.Format = MagickFormat.Jpeg;
-        Log.Debug("Encoding image to JPEG");
-        byte[] jpeg = comp.ToByteArray();
-        Log.Debug("Reloading compressed image for comparison");
-        using var compReloaded = new MagickImage(jpeg);
 
-        Log.Debug("Comparing images to generate ELA diff");
-        using var diff = new MagickImage();
-        double score = orig.Compare(compReloaded, ErrorMetric.RootMeanSquared, diff);
-        Log.Debug("Writing diff map to {MapPath}", mapPath);
-        diff.Depth = 8;
-        diff.Write(mapPath, MagickFormat.Png);
+        byte[] jpeg;
+        try
+        {
+            Log.Debug("Encoding image to JPEG");
+            jpeg = comp.ToByteArray();
+            Log.Debug("JPEG encoding produced {Length} bytes", jpeg.Length);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to encode {Image} to JPEG", imagePath);
+            throw;
+        }
 
-        Log.Information("ELA analysis completed for {Image}: {Score}", imagePath, score);
-        return (score, mapPath);
+        MagickImage compReloaded;
+        try
+        {
+            Log.Debug("Reloading compressed image for comparison");
+            compReloaded = new MagickImage(jpeg);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to reload compressed JPEG for {Image}", imagePath);
+            throw;
+        }
+        using (compReloaded)
+        {
+            Log.Debug("Comparing images to generate ELA diff");
+            using var diff = new MagickImage();
+            double score = orig.Compare(compReloaded, ErrorMetric.RootMeanSquared, diff);
+            Log.Debug("Writing diff map to {MapPath}", mapPath);
+            diff.Depth = 8;
+            diff.Write(mapPath, MagickFormat.Png);
+
+            Log.Information("ELA analysis completed for {Image}: {Score}", imagePath, score);
+            return (score, mapPath);
+        }
     }
 }
