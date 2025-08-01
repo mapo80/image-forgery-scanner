@@ -286,7 +286,7 @@ dotnet test ImageForensic.Api.Tests/ImageForensic.Api.Tests.csproj -v n
 I dataset di riferimento (CASIA2) sono collocati in `dataset/authentic` e `dataset/tampered`; altri file come `clean.png` e `inpainting.png` risiedono in `tests/ImageForensics.Tests/testdata`.
 
 
-Ultima esecuzione test: **2025-08-01 06:41 UTC** – superati `TestOpenCvSharp` (2 test), `ImageForensic.Api.Tests` (4 test) e `ImageForensics.Tests` (46 test).
+Ultima esecuzione test: **2025-08-01 08:26 UTC** – superati `TestOpenCvSharp` (2 test), `ImageForensic.Api.Tests` (4 test) e `ImageForensics.Tests` (1 test).
 
 ### Riepilogo test
 

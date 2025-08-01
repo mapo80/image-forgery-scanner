@@ -1,4 +1,7 @@
+using System;
 using System.Globalization;
+using System.Net.Http;
+using Microsoft.AspNetCore.Components;
 using AntDesign;
 using ImageForensic.Api;
 using ImageForensics.Core;
@@ -11,6 +14,7 @@ builder.Services.AddSingleton<IForensicsAnalyzer, ForensicsAnalyzer>();
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddAntDesign();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
