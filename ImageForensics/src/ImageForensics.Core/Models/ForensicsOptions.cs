@@ -14,8 +14,8 @@ public record ForensicsOptions
     public string MetadataMapDir   { get; init; } = Path.GetTempPath();
 
     // Model locations which can be overridden for custom deployments.
-    public string SplicingModelPath  { get; init; } = "mantranet_256x256.onnx";
-    public string NoiseprintModelsDir { get; init; } = "ImageForensics/src/Models/onnx/noiseprint";
+    public string SplicingModelPath  { get; init; } = "Models/onnx/mantranet_256x256.onnx";
+    public string NoiseprintModelsDir { get; init; } = "Models/onnx/noiseprint";
 
     public int ElaQuality { get; init; } = 75;
 
