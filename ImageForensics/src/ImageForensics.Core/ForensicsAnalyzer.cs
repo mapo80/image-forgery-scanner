@@ -29,18 +29,36 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Directory.CreateDirectory(options.WorkDir);
 
         var semaphore = new SemaphoreSlim(Math.Max(1, options.MaxParallelChecks));
-        Task<T> RunAsync<T>(Func<T> func) => Task.Run(() =>
+
+        Task<T> RunAsync<T>(Func<T> func, T defaultValue, string checkName) => Task.Run(() =>
         {
             semaphore.Wait();
-            try { return func(); }
-            finally { semaphore.Release(); }
+            try
+            {
+                Log.Debug("Starting {Check}", checkName);
+                var result = func();
+                Log.Debug("Completed {Check}", checkName);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Check} failed", checkName);
+                return defaultValue;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         });
 
         Task<(double, string)> elaTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.Ela))
         {
             Log.Information("Running ELA check");
-            elaTask = RunAsync(() => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality));
+            elaTask = RunAsync(
+                () => ElaAnalyzer.Analyze(imagePath, options.WorkDir, options.ElaQuality),
+                (0d, string.Empty),
+                "ELA");
         }
 
         Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
@@ -48,13 +66,16 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         {
             Directory.CreateDirectory(options.CopyMoveMaskDir);
             Log.Information("Running Copy-Move check");
-            cmTask = RunAsync(() => CopyMoveDetector.Analyze(
-                imagePath,
-                options.CopyMoveMaskDir,
-                options.CopyMoveFeatureCount,
-                options.CopyMoveMatchDistance,
-                options.CopyMoveRansacReproj,
-                options.CopyMoveRansacProb));
+            cmTask = RunAsync(
+                () => CopyMoveDetector.Analyze(
+                    imagePath,
+                    options.CopyMoveMaskDir,
+                    options.CopyMoveFeatureCount,
+                    options.CopyMoveMatchDistance,
+                    options.CopyMoveRansacReproj,
+                    options.CopyMoveRansacProb),
+                (0d, string.Empty),
+                "Copy-Move");
         }
 
         Task<(double, string)> spTask = Task.FromResult((0d, string.Empty));
@@ -80,7 +101,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
                     modelPath,
                     options.SplicingInputWidth,
                     options.SplicingInputHeight);
-            });
+            }, (0d, string.Empty), "Splicing");
         }
 
         Task<(double, string)> ipTask = Task.FromResult((0d, string.Empty));
@@ -104,7 +125,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
                     options.NoiseprintMapDir,
                     modelsDir,
                     options.NoiseprintInputSize);
-            });
+            }, (0d, string.Empty), "Inpainting");
         }
 
         Task<(double, IReadOnlyDictionary<string, string?>)> exifTask =
@@ -117,10 +138,19 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
             exifTask = RunAsync(() => ExifChecker.Analyze(
                 imagePath,
                 options.MetadataMapDir,
-                options.ExpectedCameraModels));
+                options.ExpectedCameraModels),
+                (0d, new Dictionary<string, string?>()),
+                "EXIF");
         }
 
-        await Task.WhenAll(elaTask, cmTask, spTask, ipTask, exifTask);
+        try
+        {
+            await Task.WhenAll(elaTask, cmTask, spTask, ipTask, exifTask);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Unexpected error during analysis");
+        }
 
         var (elaScore, elaMapPath) = await elaTask;
         Log.Information("ELA score {Score} map {Map}", elaScore, elaMapPath);
