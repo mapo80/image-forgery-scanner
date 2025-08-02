@@ -38,4 +38,4 @@ stages:
       inputs:
         azureSubscription: 'Links Digital Banking(2435bfbe-69c0-4cb3-a07c-cfbe908d6634)'
         appName: 'cserd-forensicschecks'
-        containers: '$(Build.BuildId)'
+        containers: 'imageforgery:$(Build.BuildId)'
