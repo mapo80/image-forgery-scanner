@@ -64,29 +64,36 @@
                     </label>
                     <input class="form-control" asp-for="Options.ElaQuality" type="number" />
                 </div>
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Options.ElaWindowSize">
-                        @Html.DisplayNameFor(m => m.Options.ElaWindowSize)
-                    </label>
-                    <input class="form-control" asp-for="Options.ElaWindowSize" type="number" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Options.ElaK">
-                        @Html.DisplayNameFor(m => m.Options.ElaK)
-                    </label>
-                    <input class="form-control" asp-for="Options.ElaK" type="number" step="0.01" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Options.ElaMinArea">
-                        @Html.DisplayNameFor(m => m.Options.ElaMinArea)
-                    </label>
-                    <input class="form-control" asp-for="Options.ElaMinArea" type="number" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Options.ElaKernelSize">
-                        @Html.DisplayNameFor(m => m.Options.ElaKernelSize)
-                    </label>
-                    <input class="form-control" asp-for="Options.ElaKernelSize" type="number" />
+                <div>
+                    <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#elaAdvanced" aria-expanded="false" aria-controls="elaAdvanced">
+                        Opzioni avanzate
+                    </button>
+                    <div class="collapse mt-3" id="elaAdvanced">
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="Options.ElaWindowSize">
+                                @Html.DisplayNameFor(m => m.Options.ElaWindowSize)
+                            </label>
+                            <input class="form-control" asp-for="Options.ElaWindowSize" type="number" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="Options.ElaK">
+                                @Html.DisplayNameFor(m => m.Options.ElaK)
+                            </label>
+                            <input class="form-control" asp-for="Options.ElaK" type="number" step="0.01" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="Options.ElaMinArea">
+                                @Html.DisplayNameFor(m => m.Options.ElaMinArea)
+                            </label>
+                            <input class="form-control" asp-for="Options.ElaMinArea" type="number" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="Options.ElaKernelSize">
+                                @Html.DisplayNameFor(m => m.Options.ElaKernelSize)
+                            </label>
+                            <input class="form-control" asp-for="Options.ElaKernelSize" type="number" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
