@@ -11,13 +11,17 @@ public class ErrorHandlingTests
     public async Task AnalyzerCollectsErrorsPerCheck()
     {
         var analyzer = new ForensicsAnalyzer();
+        string workDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var options = new ForensicsOptions
         {
-            WorkDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()),
-            EnabledChecks = ForensicsCheck.Ela | ForensicsCheck.Exif
+            WorkDir = workDir,
+            SplicingMapDir = workDir,
+            SplicingModelPath = typeof(ErrorHandlingTests).Assembly.Location,
+            EnabledChecks = ForensicsCheck.Ela | ForensicsCheck.Splicing | ForensicsCheck.Exif
         };
         var result = await analyzer.AnalyzeAsync("missing.jpg", options);
         Assert.Contains("ELA", result.Errors.Keys);
+        Assert.Contains("Splicing", result.Errors.Keys);
         Assert.Contains("EXIF", result.Errors.Keys);
     }
 

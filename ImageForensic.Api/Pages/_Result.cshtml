@@ -2,17 +2,17 @@
 
 <div id="result">
     <div class="alert alert-info">
-        <h2>Risultato: @Model.Result!.Verdict</h2>
+        <h2>Result: @Model.Result!.Verdict</h2>
         <table class="table table-sm mb-0">
             <thead>
-                <tr><th>Punteggio totale</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr>
+                <tr><th>Total score</th><th>Clean threshold</th><th>Tampered threshold</th><th>Interpretation</th></tr>
             </thead>
             <tbody>
                 <tr>
                     <td>@Model.Result!.TotalScore.ToString("F2")</td>
                     <td>@Model.Options.CleanThreshold</td>
                     <td>@Model.Options.TamperedThreshold</td>
-                    <td>@Model.SpiegaPunteggio(Model.Result!.TotalScore)</td>
+                    <td>@Model.ExplainScore(Model.Result!.TotalScore)</td>
                 </tr>
             </tbody>
         </table>
@@ -20,7 +20,7 @@
     @if (Model.Result!.Errors.Count > 0)
     {
         <div class="alert alert-warning">
-            <h3>Errori dei controlli</h3>
+            <h3>Check errors</h3>
             <ul class="mb-0">
             @foreach (var kv in Model.Result!.Errors)
             {
@@ -35,13 +35,13 @@
             <div class="card-header">ELA</div>
             <div class="card-body">
                 <table class="table table-sm">
-                    <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                    <thead><tr><th>Score</th><th>Clean threshold</th><th>Tampered threshold</th><th>Interpretation</th></tr></thead>
                     <tbody>
                         <tr>
                             <td>@Model.Result!.ElaScore.ToString("F2")</td>
                             <td>@Model.Options.CleanThreshold</td>
                             <td>@Model.Options.TamperedThreshold</td>
-                            <td>@Model.SpiegaPunteggio(Model.Result!.ElaScore)</td>
+                            <td>@Model.ExplainScore(Model.Result!.ElaScore)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -54,13 +54,13 @@
             <div class="card-header">Copy-Move</div>
             <div class="card-body">
                 <table class="table table-sm">
-                    <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                    <thead><tr><th>Score</th><th>Clean threshold</th><th>Tampered threshold</th><th>Interpretation</th></tr></thead>
                     <tbody>
                         <tr>
                             <td>@Model.Result!.CopyMoveScore.ToString("F2")</td>
                             <td>@Model.Options.CleanThreshold</td>
                             <td>@Model.Options.TamperedThreshold</td>
-                            <td>@Model.SpiegaPunteggio(Model.Result!.CopyMoveScore)</td>
+                            <td>@Model.ExplainScore(Model.Result!.CopyMoveScore)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -75,13 +75,13 @@
                 <div class="card-header">Inpainting</div>
                 <div class="card-body">
                     <table class="table table-sm">
-                        <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                        <thead><tr><th>Score</th><th>Clean threshold</th><th>Tampered threshold</th><th>Interpretation</th></tr></thead>
                         <tbody>
                             <tr>
                                 <td>@Model.Result!.InpaintingScore.ToString("F2")</td>
                                 <td>@Model.Options.CleanThreshold</td>
                                 <td>@Model.Options.TamperedThreshold</td>
-                                <td>@Model.SpiegaPunteggio(Model.Result!.InpaintingScore)</td>
+                                <td>@Model.ExplainScore(Model.Result!.InpaintingScore)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -95,20 +95,20 @@
             <div class="card-header">Metadata</div>
             <div class="card-body">
                 <table class="table table-sm mb-3">
-                    <thead><tr><th>Punteggio</th><th>Soglia pulita</th><th>Soglia manomessa</th><th>Interpretazione</th></tr></thead>
+                    <thead><tr><th>Score</th><th>Clean threshold</th><th>Tampered threshold</th><th>Interpretation</th></tr></thead>
                     <tbody>
                         <tr>
                             <td>@Model.Result!.ExifScore.ToString("F2")</td>
                             <td>@Model.Options.CleanThreshold</td>
                             <td>@Model.Options.TamperedThreshold</td>
-                            <td>@Model.SpiegaPunteggio(Model.Result!.ExifScore)</td>
+                            <td>@Model.ExplainScore(Model.Result!.ExifScore)</td>
                         </tr>
                     </tbody>
                 </table>
                 @if (Model.Result!.ExifAnomalies.Count > 0)
                 {
                     <table class="table table-sm mb-0">
-                        <thead><tr><th>Campo</th><th>Valore</th></tr></thead>
+                        <thead><tr><th>Field</th><th>Value</th></tr></thead>
                         <tbody>
                         @foreach (var kv in Model.Result!.ExifAnomalies)
                         {

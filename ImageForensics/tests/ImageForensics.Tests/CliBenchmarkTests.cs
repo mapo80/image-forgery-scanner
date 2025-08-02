@@ -46,7 +46,13 @@ public class CliBenchmarkTests
         File.Exists(jsonPath).Should().BeTrue();
         var doc = JsonDocument.Parse(File.ReadAllText(jsonPath));
         var stats = doc.RootElement.GetProperty("Stats");
-        double avg = stats.GetProperty("ELA").GetProperty("Average").GetDouble();
-        avg.Should().BeGreaterThan(0);
+        double elaAvg = stats.GetProperty("ELA").GetProperty("Average").GetDouble();
+        elaAvg.Should().BeGreaterThan(0);
+        double spAvg = stats.GetProperty("Splicing").GetProperty("Average").GetDouble();
+        spAvg.Should().BeGreaterThan(0);
+        var results = doc.RootElement.GetProperty("Results");
+        results.GetArrayLength().Should().BeGreaterThan(0);
+        var first = results[0];
+        first.TryGetProperty("splicingScore", out _).Should().BeTrue();
     }
 }
