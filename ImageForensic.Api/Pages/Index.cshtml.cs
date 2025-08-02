@@ -41,13 +41,13 @@ public class IndexModel : PageModel
         { ForensicsCheck.Exif, "Analyzes image metadata for anomalies." }
     };
 
-    public string SpiegaPunteggio(double punteggio)
+    public string ExplainScore(double score)
     {
-        if (punteggio < Options.CleanThreshold)
-            return $"Inferiore alla soglia di pulizia ({Options.CleanThreshold:F2}): il controllo non evidenzia manipolazioni.";
-        if (punteggio > Options.TamperedThreshold)
-            return $"Superiore alla soglia di manomissione ({Options.TamperedThreshold:F2}): il controllo suggerisce manomissioni.";
-        return $"Tra le soglie ({Options.CleanThreshold:F2}-{Options.TamperedThreshold:F2}): il risultato è incerto.";
+        if (score < Options.CleanThreshold)
+            return $"Below clean threshold ({Options.CleanThreshold:F2}): the check shows no tampering.";
+        if (score > Options.TamperedThreshold)
+            return $"Above tampered threshold ({Options.TamperedThreshold:F2}): the check suggests tampering.";
+        return $"Between thresholds ({Options.CleanThreshold:F2}-{Options.TamperedThreshold:F2}): the result is uncertain.";
     }
 
     public async Task<IActionResult> OnPostAsync()
