@@ -4,11 +4,11 @@ namespace ImageForensic.Api;
 
 public record AnalyzeImageOptions
 {
-    public int ElaQuality { get; init; } = 75;
+    public int ElaQuality { get; init; } = 90;
     public int ElaWindowSize { get; init; } = 15;
     public double ElaK { get; init; } = 0.2;
-    public int ElaMinArea { get; init; } = 100;
-    public int ElaKernelSize { get; init; } = 5;
+    public int ElaMinArea { get; init; } = 50;
+    public int ElaKernelSize { get; init; } = 3;
 
     public int CopyMoveFeatureCount { get; init; } = 5000;
     public double CopyMoveMatchDistance { get; init; } = 3.0;
@@ -30,11 +30,11 @@ public record AnalyzeImageOptions
 
     public ForensicsOptions ToForensicsOptions() => new()
     {
-        ElaQuality = ElaQuality > 0 ? ElaQuality : 75,
+        ElaQuality = ElaQuality > 0 ? ElaQuality : 90,
         ElaWindowSize = ElaWindowSize > 0 ? ElaWindowSize : 15,
         ElaK = ElaK != 0 ? ElaK : 0.2,
-        ElaMinArea = ElaMinArea > 0 ? ElaMinArea : 100,
-        ElaKernelSize = ElaKernelSize > 0 ? ElaKernelSize : 5,
+        ElaMinArea = ElaMinArea > 0 ? ElaMinArea : 50,
+        ElaKernelSize = ElaKernelSize > 0 ? ElaKernelSize : 3,
         CopyMoveFeatureCount = CopyMoveFeatureCount,
         CopyMoveMatchDistance = CopyMoveMatchDistance,
         CopyMoveRansacReproj = CopyMoveRansacReproj,

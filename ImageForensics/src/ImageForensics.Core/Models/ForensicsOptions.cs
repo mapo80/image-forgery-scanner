@@ -17,11 +17,11 @@ public record ForensicsOptions
     public string SplicingModelPath  { get; init; } = "Models/onnx/mantranet_256x256.onnx";
     public string NoiseprintModelsDir { get; init; } = "Models/onnx/noiseprint";
 
-    public int ElaQuality { get; init; } = 75;
+    public int ElaQuality { get; init; } = 90;
     public int ElaWindowSize { get; init; } = 15;
     public double ElaK { get; init; } = 0.2;
-    public int ElaMinArea { get; init; } = 100;
-    public int ElaKernelSize { get; init; } = 5;
+    public int ElaMinArea { get; init; } = 50;
+    public int ElaKernelSize { get; init; } = 3;
 
     public int    CopyMoveFeatureCount  { get; init; } = 5000;
     public double CopyMoveMatchDistance { get; init; } = 3.0;

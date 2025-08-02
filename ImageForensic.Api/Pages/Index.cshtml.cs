@@ -31,7 +31,7 @@ public class IndexModel : PageModel
     public string CopyMoveMapBase64 { get; private set; } = string.Empty;
     public string InpaintingMapBase64 { get; private set; } = string.Empty;
 
-    public AnalyzeImageOptionsForm DefaultOptions { get; } = new();
+    public AnalyzeImageOptionsForm DefaultOptions { get; } = new() { ElaQuality = 90, ElaMinArea = 50, ElaKernelSize = 3 };
     public List<string> AvailableCameraModels { get; } = new() { "Canon EOS 80D", "Nikon D850" };
     public Dictionary<ForensicsCheck, string> CheckDescriptions { get; } = new()
     {
@@ -95,7 +95,7 @@ public class IndexModel : PageModel
     public class AnalyzeImageOptionsForm
     {
         [Display(Name = "ELA quality")]
-        public int ElaQuality { get; set; } = 75;
+        public int ElaQuality { get; set; } = 90;
 
         [Display(Name = "ELA window size")]
         public int ElaWindowSize { get; set; } = 15;
@@ -104,10 +104,10 @@ public class IndexModel : PageModel
         public double ElaK { get; set; } = 0.2;
 
         [Display(Name = "ELA min area")]
-        public int ElaMinArea { get; set; } = 100;
+        public int ElaMinArea { get; set; } = 50;
 
         [Display(Name = "ELA kernel size")]
-        public int ElaKernelSize { get; set; } = 5;
+        public int ElaKernelSize { get; set; } = 3;
 
         [Display(Name = "Copy-Move feature count")]
         public int CopyMoveFeatureCount { get; set; } = 5000;
