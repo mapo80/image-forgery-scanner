@@ -145,12 +145,6 @@ static Task RunBenchmarkAsync(
     bool saveReport,
     int parallelImages)
 {
-    var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
-        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-        .ToArray();
-
     Directory.CreateDirectory(workDir);
     Directory.CreateDirectory(reportDir);
 
@@ -162,6 +156,22 @@ static Task RunBenchmarkAsync(
         NoiseprintMapDir = workDir,
         MetadataMapDir = workDir
     };
+
+    if (benchCm && Directory.Exists(Path.Combine(inputDir, "forged")) && Directory.Exists(Path.Combine(inputDir, "mask")))
+    {
+        string csvPath = Path.Combine("bench", "copymove", "metrics.csv");
+        CopyMoveAnalysisRunner.Run(inputDir, csvPath,
+            opts.CopyMoveFeatureCount, opts.CopyMoveMatchDistance,
+            opts.CopyMoveRansacReproj, opts.CopyMoveRansacProb, 100, 3);
+        Console.WriteLine($"Copy-Move metrics written to {csvPath}");
+        return Task.CompletedTask;
+    }
+
+    var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
+        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
 
     var elaTimes = new ConcurrentBag<long>();
     var cmTimes = new ConcurrentBag<long>();
