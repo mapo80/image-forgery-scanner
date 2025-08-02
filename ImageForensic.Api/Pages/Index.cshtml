@@ -72,24 +72,28 @@
                         <div class="mb-3">
                             <label class="form-label" asp-for="Options.ElaWindowSize">
                                 @Html.DisplayNameFor(m => m.Options.ElaWindowSize)
+                                <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Size of the sliding window used to compute local variance."></i>
                             </label>
                             <input class="form-control" asp-for="Options.ElaWindowSize" type="number" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label" asp-for="Options.ElaK">
                                 @Html.DisplayNameFor(m => m.Options.ElaK)
+                                <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Multiplier applied to the variance threshold for flagging anomalies."></i>
                             </label>
                             <input class="form-control" asp-for="Options.ElaK" type="number" step="0.01" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label" asp-for="Options.ElaMinArea">
                                 @Html.DisplayNameFor(m => m.Options.ElaMinArea)
+                                <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Minimum connected area in pixels that a suspicious region must cover."></i>
                             </label>
                             <input class="form-control" asp-for="Options.ElaMinArea" type="number" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label" asp-for="Options.ElaKernelSize">
                                 @Html.DisplayNameFor(m => m.Options.ElaKernelSize)
+                                <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Kernel size used to blur the ELA residual before thresholding."></i>
                             </label>
                             <input class="form-control" asp-for="Options.ElaKernelSize" type="number" />
                         </div>
