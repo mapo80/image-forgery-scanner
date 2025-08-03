@@ -636,26 +636,26 @@ dotnet run --project ElaSegmentation.Cmd \
 | std     |       0.000 |     0.000 |    0.000 |    0.000 |   0.086 | 0.000 | 0.000 |  0.000 | 0.000 |      0.223 | 0.086 |        0.000 |       0.000 |  141.129 |      18.085 |
 ## Copy-Move Results
 
-| Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | Fpr95TPR | AP | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 012.png | 0.680 | 0.079 | -0.224 | 0.016 | 0.031 | -0.025 | 0.379 | 0.079 | 0.022 | 0.011 | 22017 | 0.82 |
-| 175.png | 0.679 | 0.039 | 0.000 | 0.000 | 0.000 | 0.000 | 0.373 | 0.039 | 0.000 | 0.000 | 1126 | 0.00 |
-| **Mean (50 imgs)** | 0.532 | 0.079 | 0.062 | 0.012 | 0.015 | 0.013 | 0.637 | 0.079 | 0.007 | 0.000 | 1803 | 1.97 |
+| Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 118.png | 0.715 | 0.595 | 4.021 | 0.560 | 0.718 | 0.743 | 0.342 | 0.304 | 1775 | 0.00 |
+| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 2376 | 61.80 |
+| **Mean ± Std (50 imgs)** | 0.565 ± 0.181 | 0.139 ± 0.217 | 0.500 ± 1.119 | 0.075 ± 0.206 | 0.094 ± 0.237 | 0.101 ± 0.243 | 0.019 ± 0.062 | 0.041 ± 0.106 | 9980 ± 36214 | 2.53 ± 9.43 |
 
-Multi-scale block sizes (8/16/32) with 95th-percentile normalization yield a small overlap on `012.png`, while images such as `175.png` remain empty after Otsu thresholding.
+Updated defaults (block sizes 8/12/16/24, stride≈bs/3, K=10, τ=0.08) improve overlap on `118.png` while `005.png` remains undetected.
 
-<details><summary>012.png (success)</summary>
+<details><summary>118.png (success)</summary>
 
-![raw](bench/copymove/debug/012_map_raw.base64)
-![norm](bench/copymove/debug/012_map_norm.base64)
-![bin](bench/copymove/debug/012_map_bin.base64)
+![raw](bench/copymove/debug/118_map_raw.base64)
+![norm](bench/copymove/debug/118_map_norm.base64)
+![bin](bench/copymove/debug/118_map_bin.base64)
 
 </details>
 
-<details><summary>175.png (failure)</summary>
+<details><summary>005.png (failure)</summary>
 
-![raw](bench/copymove/debug/175_map_raw.base64)
-![norm](bench/copymove/debug/175_map_norm.base64)
-![bin](bench/copymove/debug/175_map_bin.base64)
+![raw](bench/copymove/debug/005_map_raw.base64)
+![norm](bench/copymove/debug/005_map_norm.base64)
+![bin](bench/copymove/debug/005_map_bin.base64)
 
 </details>

@@ -23,14 +23,12 @@ if (args[0] == "--copy-move-eval")
 {
     string cmDataRoot = ".";
     string cmReportDir = "bench/copymove";
-    int[] cmBlockSizes = new[] { 8, 16, 32 };
-    int cmStride = 4;
-    int cmK = 5;
-    double cmTau = 0.10;
+    int[] cmBlockSizes = new[] { 8, 12, 16, 24 };
+    int cmK = 10;
+    double cmTau = 0.08;
     int cmMinShift = 20;
     double cmEps = 5.0;
     int cmMinPts = 20;
-    int cmMorphKernel = 5;
     int cmMinArea = 50;
     double cmThresholdFixed = -1; // use Otsu if <0
 
@@ -49,9 +47,6 @@ if (args[0] == "--copy-move-eval")
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Select(int.Parse).ToArray();
                 break;
-            case "--stride" when i + 1 < args.Length:
-                cmStride = int.Parse(args[++i]);
-                break;
             case "--K" when i + 1 < args.Length:
                 cmK = int.Parse(args[++i]);
                 break;
@@ -67,9 +62,6 @@ if (args[0] == "--copy-move-eval")
             case "--minPts" when i + 1 < args.Length:
                 cmMinPts = int.Parse(args[++i]);
                 break;
-            case "--morphKernel" when i + 1 < args.Length:
-                cmMorphKernel = int.Parse(args[++i]);
-                break;
             case "--minArea" when i + 1 < args.Length:
                 cmMinArea = int.Parse(args[++i]);
                 break;
@@ -79,8 +71,8 @@ if (args[0] == "--copy-move-eval")
         }
     }
 
-    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSizes, cmStride, cmK, cmTau,
-        cmMinShift, cmEps, cmMinPts, cmMorphKernel, cmMinArea, cmThresholdFixed);
+    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSizes, cmK, cmTau,
+        cmMinShift, cmEps, cmMinPts, cmMinArea, cmThresholdFixed);
     return;
 }
 

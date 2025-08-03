@@ -23,7 +23,7 @@ public static class CopyMoveDense
     /// <summary>
     /// Compute raw and normalized copy–move confidence maps.
     /// </summary>
-    public static (Mat Raw, Mat Norm, int Blocks, int Candidates, int Kept) ComputeCopyMoveMap(
+    public static (Mat Raw, Mat Norm, int Blocks, int Candidates, int KeptMatches, int Clusters, int KeptClusters) ComputeCopyMoveMap(
         Mat src,
         int blockSize = 16,
         int stride = 4,
@@ -32,7 +32,7 @@ public static class CopyMoveDense
         int minShift = 20,
         double eps = 5.0,
         int minPts = 20,
-        int morphKernel = 5,
+        int minArea = 50,
         double normPercentile = 0.95)
     {
         using var gray = new Mat();
@@ -97,6 +97,8 @@ public static class CopyMoveDense
         }
 
         int keptMatches = 0;
+        int clusterCount = 0;
+        int keptClusters = 0;
         if (matches.Count > 0)
         {
             var offsets = matches.Select(m => new Point2d(m.dx, m.dy)).ToList();
@@ -104,6 +106,7 @@ public static class CopyMoveDense
             var groups = matches.Select((m, idx) => (m, idx))
                 .GroupBy(t => labels[t.idx])
                 .Where(g => g.Key >= 0);
+            clusterCount = groups.Count();
             foreach (var g in groups)
             {
                 var dxs = g.Select(t => (double)t.m.dx).ToArray();
@@ -112,7 +115,10 @@ public static class CopyMoveDense
                 double meanDy = dys.Average();
                 double varDx = dxs.Select(d => (d - meanDx) * (d - meanDx)).Average();
                 double varDy = dys.Select(d => (d - meanDy) * (d - meanDy)).Average();
-                if (varDx + varDy > 25) continue;
+                if (varDx + varDy > 20) continue;
+                int clusterArea = g.Count() * blockSize * blockSize;
+                if (clusterArea < minArea) continue;
+                keptClusters++;
                 foreach (var t in g)
                 {
                     keptMatches++;
@@ -141,10 +147,7 @@ public static class CopyMoveDense
             norm.ConvertTo(norm, MatType.CV_32F, 1.0 / p);
         Cv2.Min(norm, 1.0, norm);
 
-        var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphKernel, morphKernel));
-        Cv2.MorphologyEx(norm, norm, MorphTypes.Close, kernel);
-
-        return (raw, norm, blockCount, candidateMatches, keptMatches);
+        return (raw, norm, blockCount, candidateMatches, keptMatches, clusterCount, keptClusters);
     }
 
     static double Percentile(Mat m, double percentile)
