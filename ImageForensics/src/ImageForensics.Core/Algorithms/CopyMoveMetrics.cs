@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenCvSharp;
+using OpenCvSharp.Extensions;
 using OpenCvSharp.Features2D;
 
 namespace ImageForensics.Core.Algorithms;
@@ -11,13 +13,25 @@ public static class CopyMoveMetrics
 {
     private static readonly ConcurrentDictionary<int, SIFT> SiftCache = new();
 
-    public static float[,] ComputeCopyMoveMap(Mat img, int featureCount, double loweRatio, double minAreaPct)
+    public static float[,] ComputeCopyMoveMap(
+        Mat src,
+        int siftFeatures = 500,
+        double loweRatio = 0.75,
+        double clusterEps = 20.0,
+        int clusterMinPts = 5,
+        int morphOpenKernel = 3,
+        int morphCloseKernel = 5,
+        double normPercentile = 0.99,
+        double minAreaPct = 0.001)
     {
-        var sift = SiftCache.GetOrAdd(featureCount, f => SIFT.Create(f));
+        if (src.Channels() > 1)
+            Cv2.CvtColor(src, src, ColorConversionCodes.BGR2GRAY);
+
+        var sift = SiftCache.GetOrAdd(siftFeatures, f => SIFT.Create(f));
         using var descriptors = new Mat();
-        sift.DetectAndCompute(img, null, out KeyPoint[] keypoints, descriptors);
+        sift.DetectAndCompute(src, null, out KeyPoint[] keypoints, descriptors);
         if (descriptors.Empty() || keypoints.Length < 2)
-            return new float[img.Width, img.Height];
+            return new float[src.Width, src.Height];
 
         using var matcher = new FlannBasedMatcher();
         var knn = matcher.KnnMatch(descriptors, descriptors, 2);
@@ -27,27 +41,27 @@ public static class CopyMoveMetrics
             .Select(m => m[0])
             .ToArray();
         if (rawMatches.Length < 3)
-            return new float[img.Width, img.Height];
+            return new float[src.Width, src.Height];
 
         var srcPts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
-        int[] labels = Dbscan(srcPts, 20.0, 4);
+        int[] labels = Dbscan(srcPts, clusterEps, clusterMinPts);
         var matches = rawMatches.Where((m, i) => labels[i] >= 0).ToArray();
         if (matches.Length == 0)
-            return new float[img.Width, img.Height];
+            return new float[src.Width, src.Height];
 
-        var map = new Mat(img.Size(), MatType.CV_32FC1, Scalar.All(0));
+        var map = new Mat(src.Size(), MatType.CV_32FC1, Scalar.All(0));
         foreach (var m in matches)
         {
             var pt = keypoints[m.QueryIdx].Pt;
             Cv2.Circle(map, (int)pt.X, (int)pt.Y, 5, Scalar.All(1), -1);
         }
 
-        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
+        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(morphOpenKernel, morphOpenKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Open, kOpen);
-        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(5, 5));
+        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(morphCloseKernel, morphCloseKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
 
-        int minArea = (int)(img.Width * img.Height * minAreaPct);
+        int minArea = (int)(src.Width * src.Height * minAreaPct);
         using var bin = new Mat();
         Cv2.Threshold(map, bin, 0.01, 1, ThresholdTypes.Binary);
         using var labelsMat = new Mat();
@@ -67,14 +81,14 @@ public static class CopyMoveMetrics
         map.GetArray(out float[] data);
         var sorted = (float[])data.Clone();
         Array.Sort(sorted);
-        float q = sorted[(int)(0.99 * (sorted.Length - 1))];
+        float q = sorted[(int)(normPercentile * (sorted.Length - 1))];
         if (q > 0)
         {
             Cv2.Divide(map, new Scalar(q), map);
             Cv2.Min(map, 1.0, map);
         }
 
-        int w = img.Width; int h = img.Height;
+        int w = src.Width; int h = src.Height;
         var result = new float[w, h];
         map.GetArray(out data);
         int idx = 0;
@@ -82,6 +96,21 @@ public static class CopyMoveMetrics
             for (int x = 0; x < w; x++)
                 result[x, y] = data[idx++];
         return result;
+    }
+
+    public static float[,] ComputeCopyMoveMap(
+        Bitmap img,
+        int siftFeatures = 500,
+        double loweRatio = 0.75,
+        double clusterEps = 20.0,
+        int clusterMinPts = 5,
+        int morphOpenKernel = 3,
+        int morphCloseKernel = 5,
+        double normPercentile = 0.99,
+        double minAreaPct = 0.001)
+    {
+        using var mat = BitmapConverter.ToMat(img);
+        return ComputeCopyMoveMap(mat, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpenKernel, morphCloseKernel, normPercentile, minAreaPct);
     }
 
     static int[] Dbscan(Point2f[] pts, double eps, int minPts)
@@ -135,10 +164,10 @@ public static class CopyMoveMetrics
     public static double ComputeRocAucPixel(byte[,] mask, float[,] map) => ElaMetrics.ComputeRocAucPixel(mask, map);
     public static double ComputePraucPixel(byte[,] mask, float[,] map) => ElaMetrics.ComputePraucPixel(mask, map);
     public static double ComputeNss(byte[,] mask, float[,] map) => ElaMetrics.ComputeNss(mask, map);
-    public static double ComputeFprAtTpr(byte[,] mask, float[,] map, double tpr = 0.95) => ElaMetrics.ComputeFprAtTpr(mask, map, tpr);
+    public static double ComputeFprAt95Tpr(byte[,] mask, float[,] map) => ElaMetrics.ComputeFprAtTpr(mask, map, 0.95);
     public static double ComputeAveragePrecision(byte[,] mask, float[,] map) => ElaMetrics.ComputeAveragePrecision(mask, map);
     public static double ComputeOtsuThreshold(float[,] map) => ElaMetrics.ComputeOtsuThreshold(map);
-    public static double ComputePercentileThreshold(float[,] map, double percentile)
+    public static double ComputePercentileThreshold(float[,] map, double percentile = 0.95)
     {
         int w = map.GetLength(0); int h = map.GetLength(1);
         var arr = new float[w * h]; int idx = 0;
