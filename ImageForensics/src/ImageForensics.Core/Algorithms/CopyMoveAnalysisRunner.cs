@@ -38,10 +38,15 @@ public static class CopyMoveAnalysisRunner
         sb.AppendLine("image,threshold,minArea,kernel,RocAuc,Prauc,Nss,IoU,Dice,MCC,Fpr95TPR,AP,BoundaryF1,RegionIoU,TimeMs,PeakMemMb");
         foreach (var file in files)
         {
+            Console.WriteLine($"Processing {file}");
             string name = Path.GetFileName(file);
             string baseName = Path.GetFileNameWithoutExtension(file);
             string maskPath = Path.Combine(maskDir, name);
-            if (!File.Exists(maskPath)) continue;
+            if (!File.Exists(maskPath))
+            {
+                Console.WriteLine($"[WARN] mask not found for {name}");
+                continue;
+            }
             using var img = Cv2.ImRead(file, ImreadModes.Color);
             using var gt = LoadMask(maskPath);
             double roc = 0, pr = 0, nss = 0, fpr95 = 0, ap = 0;
@@ -52,9 +57,9 @@ public static class CopyMoveAnalysisRunner
                 time = ElaAdvanced.MeasureElapsedMs(() =>
                 {
                     var (raw, map) = CopyMoveMetrics.ComputeCopyMoveMap(
-                        img, siftFeatures, loweRatio, clusterEps, clusterMinPts,
-                        0.001, morphKernel, 0.99, minAreaPct);
-                    minArea = (int)(img.Width * img.Height * minAreaPct);
+                        img, name, siftFeatures, loweRatio, clusterEps, clusterMinPts,
+                        0.0, morphKernel, 0.99, minAreaPct);
+                    minArea = Math.Max(20, (int)(img.Width * img.Height * minAreaPct));
                     roc = CopyMoveMetrics.ComputeRocAucPixel(gt, map);
                     pr = CopyMoveMetrics.ComputePraucPixel(gt, map);
                     nss = CopyMoveMetrics.ComputeNss(gt, map);

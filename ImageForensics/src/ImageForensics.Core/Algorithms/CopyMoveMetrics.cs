@@ -13,11 +13,12 @@ public static class CopyMoveMetrics
 
     public static (Mat RawMap, Mat NormMap) ComputeCopyMoveMap(
         Mat src,
+        string imageName,
         int siftFeatures = 500,
         double loweRatio = 0.75,
         double clusterEps = 20.0,
         int clusterMinPts = 5,
-        double minClusterSizePct = 0.001,
+        double minClusterSizePct = 0.0,
         int morphKernel = 5,
         double normPercentile = 0.99,
         double minAreaPct = 0.001)
@@ -30,22 +31,49 @@ public static class CopyMoveMetrics
 
         var empty = new Mat(gray.Size(), MatType.CV_32F, Scalar.All(0));
 
-        var sift = SiftCache.GetOrAdd(siftFeatures, f => SIFT.Create(f));
-        using var descriptors = new Mat();
-        sift.DetectAndCompute(gray, null, out KeyPoint[] keypoints, descriptors);
-        Console.WriteLine($"keypoints: {keypoints.Length}");
-        if (descriptors.Empty() || keypoints.Length < 2)
-            return (empty, empty);
+        Mat descriptors = new();
+        KeyPoint[] keypoints = Array.Empty<KeyPoint>();
+        DMatch[] rawMatches = Array.Empty<DMatch>();
 
-        using var matcher = new FlannBasedMatcher();
-        var knn = matcher.KnnMatch(descriptors, descriptors, 2);
-        var rawMatches = knn
-            .Where(m => m.Length == 2 && m[0].QueryIdx != m[0].TrainIdx &&
-                        m[0].Distance < loweRatio * m[1].Distance)
-            .Select(m => m[0])
-            .ToArray();
-        Console.WriteLine($"good matches: {rawMatches.Length}");
-        if (rawMatches.Length < 3)
+        void RunSift(int features, double ratio)
+        {
+            descriptors.Dispose();
+            descriptors = new Mat();
+            using var sift = SIFT.Create(features);
+            sift.DetectAndCompute(gray, null, out keypoints, descriptors);
+            using var matcher = new FlannBasedMatcher();
+            var knn = matcher.KnnMatch(descriptors, descriptors, 2);
+            rawMatches = knn
+                .Where(m => m.Length == 2 && m[0].QueryIdx != m[0].TrainIdx &&
+                            m[0].Distance < ratio * m[1].Distance)
+                .Select(m => m[0])
+                .ToArray();
+            Console.WriteLine($"[{imageName}] keypoints={keypoints.Length}, goodMatches={rawMatches.Length}");
+        }
+
+        RunSift(siftFeatures, loweRatio);
+        if (rawMatches.Length == 0)
+        {
+            RunSift(Math.Max(siftFeatures, 1000), Math.Max(loweRatio, 0.9));
+        }
+
+        if (rawMatches.Length == 0)
+        {
+            descriptors.Dispose();
+            descriptors = new Mat();
+            using var orb = ORB.Create(1000);
+            orb.DetectAndCompute(gray, null, out keypoints, descriptors);
+            using var bf = new BFMatcher(NormTypes.Hamming);
+            var knn = bf.KnnMatch(descriptors, descriptors, 2);
+            rawMatches = knn
+                .Where(m => m.Length == 2 && m[0].QueryIdx != m[0].TrainIdx &&
+                            m[0].Distance < 0.9 * m[1].Distance)
+                .Select(m => m[0])
+                .ToArray();
+            Console.WriteLine($"[{imageName}] ORB keypoints={keypoints.Length}, goodMatches={rawMatches.Length}");
+        }
+
+        if (descriptors.Empty() || keypoints.Length < 2 || rawMatches.Length == 0)
             return (empty, empty);
 
         var pts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
@@ -54,7 +82,6 @@ public static class CopyMoveMetrics
         // filter clusters below area threshold
         double imgArea = gray.Width * gray.Height;
         double minClusterArea = imgArea * minClusterSizePct;
-        const double circleArea = Math.PI * 25.0; // radius 5 circles
         var clusterCounts = new Dictionary<int, int>();
         for (int i = 0; i < labels.Length; i++)
         {
@@ -66,7 +93,7 @@ public static class CopyMoveMetrics
             }
         }
         var validClusters = clusterCounts
-            .Where(kv => kv.Value * circleArea >= minClusterArea)
+            .Where(kv => kv.Value >= minClusterArea)
             .Select(kv => kv.Key)
             .ToHashSet();
 
@@ -80,8 +107,19 @@ public static class CopyMoveMetrics
         foreach (var m in matches)
         {
             var pt = keypoints[m.QueryIdx].Pt;
-            Cv2.Circle(map, (int)pt.X, (int)pt.Y, 1, Scalar.All(1), -1);
+            int x = (int)Math.Round(pt.X);
+            int y = (int)Math.Round(pt.Y);
+            if (x >= 0 && x < map.Cols && y >= 0 && y < map.Rows)
+            {
+                float current = map.Get<float>(y, x);
+                map.Set(y, x, current + 1);
+            }
         }
+
+        using var nzMask = new Mat();
+        Cv2.Compare(map, 0, nzMask, CmpType.GT);
+        int nonZero = Cv2.CountNonZero(nzMask);
+        Console.WriteLine($"[{imageName}] nonZero={nonZero}");
 
         var raw = map.Clone();
 
@@ -91,7 +129,7 @@ public static class CopyMoveMetrics
         using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphKernel, morphKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
 
-        int minArea = (int)(gray.Width * gray.Height * minAreaPct);
+        int minArea = Math.Max(20, (int)(gray.Width * gray.Height * minAreaPct));
         using var bin = new Mat();
         Cv2.Threshold(map, bin, 0.01, 1, ThresholdTypes.Binary);
         using var labelsMat = new Mat();
@@ -108,26 +146,15 @@ public static class CopyMoveMetrics
             }
         }
 
-        using var flat = map.Reshape(1, map.Rows * map.Cols);
-        Cv2.Sort(flat, flat, SortFlags.Ascending);
-        long total = flat.Total();
-        int idx = (int)Math.Clamp((long)(normPercentile * (total - 1)), 0, total - 1);
-        float q = flat.Get<float>(idx);
-        double norm = q;
-        if (norm <= 0)
+        Cv2.MinMaxLoc(map, out _, out double maxVal);
+        if (maxVal > 0)
         {
-            Cv2.MinMaxLoc(map, out _, out double maxVal);
-            norm = maxVal;
-        }
-        if (norm <= 0)
-        {
-            Console.WriteLine("Warning: empty copy-move map");
-            map.SetTo(0);
+            Cv2.Divide(map, maxVal, map);
         }
         else
         {
-            Cv2.Divide(map, norm, map);
-            Cv2.Min(map, 1.0, map);
+            Console.WriteLine($"[{imageName}] Warning: empty copy-move map");
+            map.SetTo(0);
         }
 
         return (raw, map);
