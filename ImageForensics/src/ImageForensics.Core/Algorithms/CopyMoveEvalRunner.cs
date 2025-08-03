@@ -31,8 +31,8 @@ public static class CopyMoveEvalRunner
 
     public static void Run(string dataRoot, string reportDir,
         int[] blockSizes, int k, double tau,
-        int minShift, double eps, int minPts,
-        int minArea, double thresholdFixed)
+        int minShift, int minPts,
+        double thresholdFixed)
     {
         string forgedDir = Directory.Exists(Path.Combine(dataRoot, "forged"))
             ? Path.Combine(dataRoot, "forged")
@@ -69,32 +69,50 @@ public static class CopyMoveEvalRunner
             {
                 time = ElaAdvanced.MeasureElapsedMs(() =>
                 {
+                    int minArea = Math.Max(30, (int)(0.002 * img.Width * img.Height));
                     var merged = new Mat(img.Rows, img.Cols, MatType.CV_32F, Scalar.All(0));
                     int totalMatches = 0, totalClusters = 0, keptClusters = 0;
+                    bool skip = false;
+                    int scaleIdx = 0;
                     foreach (var bs in blockSizes)
                     {
                         int strideS = Math.Max(1, (int)Math.Round(bs / 3.0));
                         var (rawS, normS, _, candidates, kept, clusters, kClusters) = CopyMoveDense.ComputeCopyMoveMap(img,
-                            bs, strideS, k, tau, minShift, eps, minPts, minArea);
+                            bs, strideS, k, tau, minShift, minPts, minArea);
                         totalMatches += kept;
                         totalClusters += clusters;
                         keptClusters += kClusters;
                         Cv2.Add(merged, normS, merged);
                         rawS.Dispose();
                         normS.Dispose();
+                        scaleIdx++;
+                        if (scaleIdx == 2)
+                        {
+                            using var tmp = new Mat();
+                            Cv2.Threshold(merged, tmp, 0.1, 1, ThresholdTypes.Binary);
+                            if (Cv2.CountNonZero(tmp) == 0)
+                            {
+                                skip = true;
+                                break;
+                            }
+                        }
                     }
-                    merged.ConvertTo(merged, MatType.CV_32F, 1.0 / blockSizes.Length);
+                    if (skip)
+                        Console.WriteLine($"[{name}] [skip]");
+                    merged.ConvertTo(merged, MatType.CV_32F, 1.0 / scaleIdx);
                     var raw = merged.Clone();
                     double p95 = Percentile(raw, 0.95);
                     if (p95 > 0)
                         merged.ConvertTo(merged, MatType.CV_32F, 1.0 / p95);
                     Cv2.Min(merged, 1.0, merged);
-                    var kernel3 = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
-                    Cv2.MorphologyEx(merged, merged, MorphTypes.Open, kernel3);
                     var norm = merged;
-                    if (threshold < 0)
-                        threshold = CopyMoveMetrics.ComputeOtsuThreshold(norm);
+                    double q90 = Percentile(norm, 0.90);
+                    double otsu = CopyMoveMetrics.ComputeOtsuThreshold(norm);
+                    threshold = threshold >= 0 ? threshold : Math.Max(otsu, q90);
                     using var bin = CopyMoveMetrics.BinarizeMap(norm, threshold);
+                    var kernel3 = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
+                    Cv2.MorphologyEx(bin, bin, MorphTypes.Open, kernel3);
+                    Cv2.MorphologyEx(bin, bin, MorphTypes.Close, kernel3);
                     CopyMoveMetrics.RemoveSmallComponents(bin, minArea);
                     roc = CopyMoveMetrics.ComputeRocAucPixel(gt, norm);
                     pr = CopyMoveMetrics.ComputePraucPixel(gt, norm);
@@ -110,10 +128,11 @@ public static class CopyMoveEvalRunner
                     raw.Dispose();
                     norm.Dispose();
                     bin.Dispose();
-                    Console.WriteLine($"[{name}] scales={blockSizes.Length} matches={totalMatches} clusters={totalClusters} kept={keptClusters} IoU={iou:F2} time={time/1000.0:F2}s");
+                    Console.WriteLine($"[{name}] matches={totalMatches} clusters={keptClusters}/{totalClusters} IoU={iou:F3} time={time/1000.0:F2}s");
                 });
             });
-            sb.AppendLine($"{name},{threshold:F3},{string.Join('-', blockSizes)},{k},{tau:F2},{minArea},{roc:F3},{pr:F3},{nss:F3},{iou:F3},{dice:F3},{mcc:F3},{bf1:F3},{regIoU:F3},{time},{mem:F2}");
+            int minAreaCsv = Math.Max(30, (int)(0.002 * img.Width * img.Height));
+            sb.AppendLine($"{name},{threshold:F3},{string.Join('-', blockSizes)},{k},{tau:F2},{minAreaCsv},{roc:F3},{pr:F3},{nss:F3},{iou:F3},{dice:F3},{mcc:F3},{bf1:F3},{regIoU:F3},{time},{mem:F2}");
         }
         File.WriteAllText(csvPath, sb.ToString());
         var lines = sb.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();

@@ -27,10 +27,8 @@ if (args[0] == "--copy-move-eval")
     int cmK = 10;
     double cmTau = 0.08;
     int cmMinShift = 20;
-    double cmEps = 5.0;
     int cmMinPts = 20;
-    int cmMinArea = 50;
-    double cmThresholdFixed = -1; // use Otsu if <0
+    double cmThresholdFixed = -1; // use hybrid if <0
 
     for (int i = 1; i < args.Length; i++)
     {
@@ -56,14 +54,8 @@ if (args[0] == "--copy-move-eval")
             case "--minShift" when i + 1 < args.Length:
                 cmMinShift = int.Parse(args[++i]);
                 break;
-            case "--eps" when i + 1 < args.Length:
-                cmEps = double.Parse(args[++i]);
-                break;
             case "--minPts" when i + 1 < args.Length:
                 cmMinPts = int.Parse(args[++i]);
-                break;
-            case "--minArea" when i + 1 < args.Length:
-                cmMinArea = int.Parse(args[++i]);
                 break;
             case "--thresholdFixed" when i + 1 < args.Length:
                 cmThresholdFixed = double.Parse(args[++i]);
@@ -72,7 +64,7 @@ if (args[0] == "--copy-move-eval")
     }
 
     CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSizes, cmK, cmTau,
-        cmMinShift, cmEps, cmMinPts, cmMinArea, cmThresholdFixed);
+        cmMinShift, cmMinPts, cmThresholdFixed);
     return;
 }
 

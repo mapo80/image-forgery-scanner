@@ -638,17 +638,17 @@ dotnet run --project ElaSegmentation.Cmd \
 
 | Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 118.png | 0.715 | 0.595 | 4.021 | 0.560 | 0.718 | 0.743 | 0.342 | 0.304 | 1775 | 0.00 |
-| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 2376 | 61.80 |
-| **Mean ± Std (50 imgs)** | 0.565 ± 0.181 | 0.139 ± 0.217 | 0.500 ± 1.119 | 0.075 ± 0.206 | 0.094 ± 0.237 | 0.101 ± 0.243 | 0.019 ± 0.062 | 0.041 ± 0.106 | 9980 ± 36214 | 2.53 ± 9.43 |
+| 034.png | 0.511 | 0.136 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 3970 | 0.00 |
+| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 4263 | 88.45 |
+| **Mean ± Std (50 imgs)** | 0.525 ± 0.162 | 0.069 ± 0.086 | -0.001 ± 0.006 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 3863 ± 433 | 3.61 ± 14.59 |
 
 Updated defaults (block sizes 8/12/16/24, stride≈bs/3, K=10, τ=0.08) improve overlap on `118.png` while `005.png` remains undetected.
 
-<details><summary>118.png (success)</summary>
+<details><summary>034.png (success)</summary>
 
-![raw](bench/copymove/debug/118_map_raw.base64)
-![norm](bench/copymove/debug/118_map_norm.base64)
-![bin](bench/copymove/debug/118_map_bin.base64)
+![raw](bench/copymove/debug/034_map_raw.base64)
+![norm](bench/copymove/debug/034_map_norm.base64)
+![bin](bench/copymove/debug/034_map_bin.base64)
 
 </details>
 

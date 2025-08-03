@@ -30,7 +30,6 @@ public static class CopyMoveDense
         int k = 5,
         double tau = 0.10,
         int minShift = 20,
-        double eps = 5.0,
         int minPts = 20,
         int minArea = 50,
         double normPercentile = 0.95)
@@ -73,7 +72,7 @@ public static class CopyMoveDense
         }
 
         int candidateMatches = 0;
-        var matches = new List<(int i, int j, int dx, int dy)>();
+        var matches = new List<(int i, int j, int dx, int dy, float dist)>();
         using (var flann = new OpenCvSharp.Flann.Index(features, new KDTreeIndexParams(4)))
         using (var indices = new Mat())
         using (var dists = new Mat())
@@ -86,21 +85,24 @@ public static class CopyMoveDense
                     int j = indices.Get<int>(i, nn);
                     if (j < 0 || j >= blockCount) continue;
                     float dist = dists.Get<float>(i, nn);
-                    if (dist > tau) continue;
                     int dx = positions[j].X - positions[i].X;
                     int dy = positions[j].Y - positions[i].Y;
                     if (Math.Sqrt(dx * dx + dy * dy) < minShift) continue;
                     candidateMatches++;
-                    matches.Add((i, j, dx, dy));
+                    matches.Add((i, j, dx, dy, dist));
                 }
             }
         }
+        // Prune by distance
+        if (matches.Count > 8000)
+            matches = matches.OrderBy(m => m.dist).Take(8000).ToList();
 
         int keptMatches = 0;
         int clusterCount = 0;
         int keptClusters = 0;
         if (matches.Count > 0)
         {
+            double eps = tau * Math.Max(w, h);
             var offsets = matches.Select(m => new Point2d(m.dx, m.dy)).ToList();
             var labels = Dbscan(offsets, eps, minPts);
             var groups = matches.Select((m, idx) => (m, idx))
@@ -109,20 +111,23 @@ public static class CopyMoveDense
             clusterCount = groups.Count();
             foreach (var g in groups)
             {
-                var dxs = g.Select(t => (double)t.m.dx).ToArray();
-                var dys = g.Select(t => (double)t.m.dy).ToArray();
-                double meanDx = dxs.Average();
-                double meanDy = dys.Average();
-                double varDx = dxs.Select(d => (d - meanDx) * (d - meanDx)).Average();
-                double varDy = dys.Select(d => (d - meanDy) * (d - meanDy)).Average();
-                if (varDx + varDy > 20) continue;
-                int clusterArea = g.Count() * blockSize * blockSize;
+                var clusterMatches = g.Select(t => t.m).ToList();
+                int clusterArea = clusterMatches.Count * blockSize * blockSize;
                 if (clusterArea < minArea) continue;
+                var srcPts = clusterMatches.Select(m => new Point2f(positions[m.i].X + blockSize / 2f, positions[m.i].Y + blockSize / 2f)).ToArray();
+                var dstPts = clusterMatches.Select(m => new Point2f(positions[m.j].X + blockSize / 2f, positions[m.j].Y + blockSize / 2f)).ToArray();
+                var srcMat = InputArray.Create(srcPts);
+                var dstMat = InputArray.Create(dstPts);
+                Mat inliers = new();
+                Cv2.EstimateAffine2D(srcMat, dstMat, inliers);
+                int inlierCount = inliers.Empty() ? 0 : Cv2.CountNonZero(inliers);
+                if (inlierCount < 0.6 * clusterMatches.Count) continue;
                 keptClusters++;
-                foreach (var t in g)
+                for (int t = 0; t < clusterMatches.Count; t++)
                 {
+                    if (inliers.At<byte>(t, 0) == 0) continue;
                     keptMatches++;
-                    var match = t.m;
+                    var match = clusterMatches[t];
                     var p1 = positions[match.i];
                     var p2 = positions[match.j];
                     for (int yy = 0; yy < blockSize; yy++)
@@ -138,6 +143,7 @@ public static class CopyMoveDense
                         }
                     }
                 }
+                inliers.Dispose();
             }
         }
 
