@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using OpenCvSharp;
 using OpenCvSharp.Features2D;
@@ -11,7 +11,7 @@ public static class CopyMoveMetrics
 {
     private static readonly ConcurrentDictionary<int, SIFT> SiftCache = new();
 
-    public static float[,] ComputeCopyMoveMap(Mat img, int featureCount, double matchMaxDist, double ransacReprojThresh, double ransacConfidence, int minArea, int kernelSize)
+    public static float[,] ComputeCopyMoveMap(Mat img, int featureCount, double loweRatio, double minAreaPct)
     {
         var sift = SiftCache.GetOrAdd(featureCount, f => SIFT.Create(f));
         using var descriptors = new Mat();
@@ -21,69 +21,115 @@ public static class CopyMoveMetrics
 
         using var matcher = new FlannBasedMatcher();
         var knn = matcher.KnnMatch(descriptors, descriptors, 2);
-        var matches = knn
-            .Where(m => m.Length == 2 &&
-                        m[0].QueryIdx != m[0].TrainIdx &&
-                        m[0].Distance < matchMaxDist &&
-                        m[0].Distance < 0.75 * m[1].Distance)
+        var rawMatches = knn
+            .Where(m => m.Length == 2 && m[0].QueryIdx != m[0].TrainIdx &&
+                        m[0].Distance < loweRatio * m[1].Distance)
             .Select(m => m[0])
             .ToArray();
-        if (matches.Length < 3)
+        if (rawMatches.Length < 3)
             return new float[img.Width, img.Height];
 
-        var srcPts = matches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
-        var dstPts = matches.Select(m => keypoints[m.TrainIdx].Pt).ToArray();
-        using var srcArr = InputArray.Create(srcPts);
-        using var dstArr = InputArray.Create(dstPts);
-        using var inliers = new Mat();
-        Cv2.EstimateAffine2D(srcArr, dstArr, inliers, RobustEstimationAlgorithms.RANSAC,
-            ransacReprojThresh, 2000, ransacConfidence, 10);
-        inliers.GetArray(out byte[] maskData);
+        var srcPts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
+        int[] labels = Dbscan(srcPts, 20.0, 4);
+        var matches = rawMatches.Where((m, i) => labels[i] >= 0).ToArray();
+        if (matches.Length == 0)
+            return new float[img.Width, img.Height];
 
         var map = new Mat(img.Size(), MatType.CV_32FC1, Scalar.All(0));
-        for (int i = 0; i < maskData.Length; i++)
+        foreach (var m in matches)
         {
-            if (maskData[i] != 0)
-            {
-                var pt = srcPts[i];
-                Cv2.Circle(map, (int)pt.X, (int)pt.Y, 5, Scalar.All(1), -1);
-            }
+            var pt = keypoints[m.QueryIdx].Pt;
+            Cv2.Circle(map, (int)pt.X, (int)pt.Y, 5, Scalar.All(1), -1);
         }
 
-        if (kernelSize > 1)
-        {
-            using var k = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(kernelSize, kernelSize));
-            Cv2.MorphologyEx(map, map, MorphTypes.Close, k);
-        }
+        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
+        Cv2.MorphologyEx(map, map, MorphTypes.Open, kOpen);
+        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(5, 5));
+        Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
 
-        Cv2.GaussianBlur(map, map, new Size(5, 5), 0);
-        Cv2.Normalize(map, map, 0, 1, NormTypes.MinMax);
-
+        int minArea = (int)(img.Width * img.Height * minAreaPct);
         using var bin = new Mat();
         Cv2.Threshold(map, bin, 0.01, 1, ThresholdTypes.Binary);
-        using var labels = new Mat();
+        using var labelsMat = new Mat();
         using var stats = new Mat();
-        Cv2.ConnectedComponentsWithStats(bin, labels, stats, new Mat(), PixelConnectivity.Connectivity8, MatType.CV_32S);
+        Cv2.ConnectedComponentsWithStats(bin, labelsMat, stats, new Mat(), PixelConnectivity.Connectivity8, MatType.CV_32S);
         for (int i = 1; i < stats.Rows; i++)
         {
             int area = stats.At<int>(i, (int)ConnectedComponentsTypes.Area);
             if (area < minArea)
             {
                 using var mask = new Mat();
-                Cv2.Compare(labels, i, mask, CmpType.EQ);
+                Cv2.Compare(labelsMat, i, mask, CmpType.EQ);
                 map.SetTo(0, mask);
             }
         }
-        Cv2.Normalize(map, map, 0, 1, NormTypes.MinMax);
+
+        map.GetArray(out float[] data);
+        var sorted = (float[])data.Clone();
+        Array.Sort(sorted);
+        float q = sorted[(int)(0.99 * (sorted.Length - 1))];
+        if (q > 0)
+        {
+            Cv2.Divide(map, new Scalar(q), map);
+            Cv2.Min(map, 1.0, map);
+        }
 
         int w = img.Width; int h = img.Height;
         var result = new float[w, h];
-        map.GetArray(out float[] data);
+        map.GetArray(out data);
         int idx = 0;
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
                 result[x, y] = data[idx++];
         return result;
+    }
+
+    static int[] Dbscan(Point2f[] pts, double eps, int minPts)
+    {
+        int n = pts.Length;
+        var labels = Enumerable.Repeat(-1, n).ToArray();
+        int cluster = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (labels[i] != -1) continue;
+            var neighbors = RangeQuery(i);
+            if (neighbors.Count < minPts)
+            {
+                labels[i] = -2;
+                continue;
+            }
+            labels[i] = cluster;
+            var queue = new Queue<int>(neighbors);
+            while (queue.Count > 0)
+            {
+                int j = queue.Dequeue();
+                if (labels[j] == -2) labels[j] = cluster;
+                if (labels[j] != -1) continue;
+                labels[j] = cluster;
+                var neigh2 = RangeQuery(j);
+                if (neigh2.Count >= minPts)
+                    foreach (var k in neigh2)
+                        if (labels[k] < 0)
+                            queue.Enqueue(k);
+            }
+            cluster++;
+        }
+        for (int i = 0; i < n; i++)
+            if (labels[i] < 0) labels[i] = -1;
+        return labels;
+
+        List<int> RangeQuery(int idx)
+        {
+            var res = new List<int>();
+            for (int k = 0; k < n; k++)
+            {
+                double dx = pts[idx].X - pts[k].X;
+                double dy = pts[idx].Y - pts[k].Y;
+                if (dx * dx + dy * dy <= eps * eps)
+                    res.Add(k);
+            }
+            return res;
+        }
     }
 
     public static double ComputeRocAucPixel(byte[,] mask, float[,] map) => ElaMetrics.ComputeRocAucPixel(mask, map);
@@ -92,6 +138,17 @@ public static class CopyMoveMetrics
     public static double ComputeFprAtTpr(byte[,] mask, float[,] map, double tpr = 0.95) => ElaMetrics.ComputeFprAtTpr(mask, map, tpr);
     public static double ComputeAveragePrecision(byte[,] mask, float[,] map) => ElaMetrics.ComputeAveragePrecision(mask, map);
     public static double ComputeOtsuThreshold(float[,] map) => ElaMetrics.ComputeOtsuThreshold(map);
+    public static double ComputePercentileThreshold(float[,] map, double percentile)
+    {
+        int w = map.GetLength(0); int h = map.GetLength(1);
+        var arr = new float[w * h]; int idx = 0;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                arr[idx++] = map[x, y];
+        Array.Sort(arr);
+        int pos = (int)(percentile * (arr.Length - 1));
+        return arr[pos];
+    }
     public static bool[,] BinarizeMap(float[,] map, double threshold) => ElaMetrics.BinarizeElaMap(map, threshold);
     public static double ComputeIoUPixel(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeIoUPixel(mask, pred);
     public static double ComputeDicePixel(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeDicePixel(mask, pred);

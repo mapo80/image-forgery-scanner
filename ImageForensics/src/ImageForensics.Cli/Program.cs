@@ -25,6 +25,10 @@ string reportDir = "benchmark_report";
 ForensicsCheck checks = ForensicsCheck.All;
 int parallel = 1;
 int parallelImages = 1;
+int siftFeatures = 1000;
+double loweRatio = 0.8;
+string thresholdMode = "otsu";
+double minAreaPct = 0.001;
 
 bool bench = false;
 bool benchEla = false;
@@ -58,6 +62,18 @@ for (int i = 0; i < args.Length; i++)
             break;
         case "--parallel-images" when i + 1 < args.Length:
             parallelImages = int.Parse(args[++i]);
+            break;
+        case "--sift-features" when i + 1 < args.Length:
+            siftFeatures = int.Parse(args[++i]);
+            break;
+        case "--lowe-ratio" when i + 1 < args.Length:
+            loweRatio = double.Parse(args[++i]);
+            break;
+        case "--threshold-mode" when i + 1 < args.Length:
+            thresholdMode = args[++i];
+            break;
+        case "--min-area-pct" when i + 1 < args.Length:
+            minAreaPct = double.Parse(args[++i]);
             break;
         case "--benchmark":
             bench = true;
@@ -101,7 +117,7 @@ if (runBenchmark)
         Console.WriteLine("--input-dir is required for benchmarking.");
         return;
     }
-    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages);
+    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages, siftFeatures, loweRatio, thresholdMode, minAreaPct);
     return;
 }
 
@@ -143,7 +159,11 @@ static Task RunBenchmarkAsync(
     bool benchIp,
     bool benchExif,
     bool saveReport,
-    int parallelImages)
+    int parallelImages,
+    int siftFeatures,
+    double loweRatio,
+    string thresholdMode,
+    double minAreaPct)
 {
     Directory.CreateDirectory(workDir);
     Directory.CreateDirectory(reportDir);
@@ -161,8 +181,7 @@ static Task RunBenchmarkAsync(
     {
         string csvPath = Path.Combine("bench", "copymove", "metrics.csv");
         CopyMoveAnalysisRunner.Run(inputDir, csvPath,
-            opts.CopyMoveFeatureCount, opts.CopyMoveMatchDistance,
-            opts.CopyMoveRansacReproj, opts.CopyMoveRansacProb, 100, 3);
+            siftFeatures, loweRatio, thresholdMode, minAreaPct);
         Console.WriteLine($"Copy-Move metrics written to {csvPath}");
         return Task.CompletedTask;
     }
