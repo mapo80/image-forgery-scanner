@@ -636,16 +636,37 @@ dotnet run --project ElaSegmentation.Cmd \
 | std     |       0.000 |     0.000 |    0.000 |    0.000 |   0.086 | 0.000 | 0.000 |  0.000 | 0.000 |      0.223 | 0.086 |        0.000 |       0.000 |  141.129 |      18.085 |
 ## Copy-Move Results
 
+| blockSizes | stride | similarity K | thr mode | minArea |
+| --- | --- | --- | --- | --- |
+| 8 / 12 / 16 / 24 | ≈ bs/3 | 6 + 10 | max(q85, otsu/255, 0.15) | max(20, ⌊0.00025·w·h⌋) |
+
 | Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 034.png | 0.511 | 0.136 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 1505 | 0.00 |
-| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 2094 | 92.04 |
-| 012.png | 0.739 | 0.093 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 1301 | 17.10 |
-| **Mean ± Std (50 imgs)** | 0.534 ± 0.183 | 0.102 ± 0.186 | 0.119 ± 0.510 | 0.040 ± 0.170 | 0.046 ± 0.182 | 0.047 ± 0.186 | 0.021 ± 0.102 | 0.029 ± 0.124 | 1752 ± 368 | 3.57 ± 13.45 |
+| 040.png | 0.992 | 0.947 | 2.126 | 0.966 | 0.983 | 0.979 | 0.672 | 0.487 | 4646 | 0.00 |
+| 139.png | 0.968 | 0.943 | 1.411 | 0.656 | 0.792 | 0.760 | 0.114 | 0.656 | 4287 | 0.00 |
+| 034.png | 0.511 | 0.136 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 3157 | 0.00 |
+| 005.png | 0.158 | 0.043 | -0.148 | 0.000 | 0.000 | -0.042 | 0.000 | 0.000 | 5343 | 97.75 |
+| **Mean ± Std (50 imgs)** | 0.557 ± 0.217 | 0.145 ± 0.242 | 0.353 ± 1.006 | 0.090 ± 0.218 | 0.113 ± 0.257 | 0.113 ± 0.260 | 0.027 ± 0.098 | 0.058 ± 0.143 | 3813 ± 1063 | 4.28 ± 17.53 |
 
-Hybrid Otsu/quantile thresholding and a lower adaptive min-area yield non-zero overlap on a handful of images, though many cases such as `005.png` and `012.png` remain challenging.
+In questa iterazione la soglia locale `max(q85, otsu/255, 0.15)` e il doppio passaggio `K=6+10` hanno portato la IoU media a 0.09 (10 immagini sopra 0.05), pur lasciando molti casi difficili.
 
-<details><summary>034.png (success)</summary>
+<details><summary>040.png (best)</summary>
+
+![raw](bench/copymove/debug/040_map_raw.base64)
+![norm](bench/copymove/debug/040_map_norm.base64)
+![bin](bench/copymove/debug/040_map_bin.base64)
+
+</details>
+
+<details><summary>139.png (good)</summary>
+
+![raw](bench/copymove/debug/139_map_raw.base64)
+![norm](bench/copymove/debug/139_map_norm.base64)
+![bin](bench/copymove/debug/139_map_bin.base64)
+
+</details>
+
+<details><summary>034.png (borderline)</summary>
 
 ![raw](bench/copymove/debug/034_map_raw.base64)
 ![norm](bench/copymove/debug/034_map_norm.base64)
@@ -658,13 +679,5 @@ Hybrid Otsu/quantile thresholding and a lower adaptive min-area yield non-zero o
 ![raw](bench/copymove/debug/005_map_raw.base64)
 ![norm](bench/copymove/debug/005_map_norm.base64)
 ![bin](bench/copymove/debug/005_map_bin.base64)
-
-</details>
-
-<details><summary>012.png (failure)</summary>
-
-![raw](bench/copymove/debug/012_map_raw.base64)
-![norm](bench/copymove/debug/012_map_norm.base64)
-![bin](bench/copymove/debug/012_map_bin.base64)
 
 </details>
