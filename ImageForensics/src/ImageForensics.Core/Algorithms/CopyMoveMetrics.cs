@@ -11,15 +11,14 @@ public static class CopyMoveMetrics
 {
     private static readonly ConcurrentDictionary<int, SIFT> SiftCache = new();
 
-    public static Mat ComputeCopyMoveMap(
+    public static (Mat RawMap, Mat NormMap) ComputeCopyMoveMap(
         Mat src,
         int siftFeatures = 500,
         double loweRatio = 0.75,
         double clusterEps = 20.0,
         int clusterMinPts = 5,
         double minClusterSizePct = 0.001,
-        int morphOpenKernel = 3,
-        int morphCloseKernel = 5,
+        int morphKernel = 5,
         double normPercentile = 0.99,
         double minAreaPct = 0.001)
     {
@@ -34,8 +33,9 @@ public static class CopyMoveMetrics
         var sift = SiftCache.GetOrAdd(siftFeatures, f => SIFT.Create(f));
         using var descriptors = new Mat();
         sift.DetectAndCompute(gray, null, out KeyPoint[] keypoints, descriptors);
+        Console.WriteLine($"keypoints: {keypoints.Length}");
         if (descriptors.Empty() || keypoints.Length < 2)
-            return empty;
+            return (empty, empty);
 
         using var matcher = new FlannBasedMatcher();
         var knn = matcher.KnnMatch(descriptors, descriptors, 2);
@@ -44,8 +44,9 @@ public static class CopyMoveMetrics
                         m[0].Distance < loweRatio * m[1].Distance)
             .Select(m => m[0])
             .ToArray();
+        Console.WriteLine($"good matches: {rawMatches.Length}");
         if (rawMatches.Length < 3)
-            return empty;
+            return (empty, empty);
 
         var pts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
         int[] labels = Dbscan(pts, clusterEps, clusterMinPts);
@@ -73,21 +74,22 @@ public static class CopyMoveMetrics
             .Where((m, i) => labels[i] >= 0 && validClusters.Contains(labels[i]))
             .ToArray();
         if (matches.Length == 0)
-            return empty;
+            return (empty, empty);
 
         var map = new Mat(gray.Size(), MatType.CV_32F, Scalar.All(0));
         foreach (var m in matches)
         {
             var pt = keypoints[m.QueryIdx].Pt;
-            Cv2.Circle(map, (int)pt.X, (int)pt.Y, 5, Scalar.All(1), -1);
+            Cv2.Circle(map, (int)pt.X, (int)pt.Y, 1, Scalar.All(1), -1);
         }
 
-        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphOpenKernel, morphOpenKernel));
-        Cv2.MorphologyEx(map, map, MorphTypes.Open, kOpen);
-        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphCloseKernel, morphCloseKernel));
+        var raw = map.Clone();
+
+        Cv2.GaussianBlur(map, map, new Size(), 1);
+        Cv2.GaussianBlur(map, map, new Size(), 2);
+
+        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphKernel, morphKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
-        using var kClose2 = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphCloseKernel + 2, morphCloseKernel + 2));
-        Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose2);
 
         int minArea = (int)(gray.Width * gray.Height * minAreaPct);
         using var bin = new Mat();
@@ -128,7 +130,7 @@ public static class CopyMoveMetrics
             Cv2.Min(map, 1.0, map);
         }
 
-        return map;
+        return (raw, map);
     }
 
     public static (double Min, double Max, double Mean, double Median, double Q95) GetMapStats(Mat map)
