@@ -30,7 +30,7 @@ public static class CopyMoveEvalRunner
     }
 
     public static void Run(string dataRoot, string reportDir,
-        int blockSize, int stride, int k, double tau,
+        int[] blockSizes, int stride, int k, double tau,
         int minShift, double eps, int minPts,
         int morphKernel, int minArea, double thresholdFixed)
     {
@@ -44,7 +44,7 @@ public static class CopyMoveEvalRunner
         string csvPath = Path.Combine(reportDir, "metrics.csv");
         var files = Directory.GetFiles(forgedDir).OrderBy(f => f).ToArray();
         var sb = new StringBuilder();
-        sb.AppendLine("image,threshold,blockSize,stride,K,tau,minArea,ROC_AUC,PRAUC,NSS,IoU,Dice,MCC,Fpr95TPR,AP,BoundaryF1,RegionIoU,TimeMs,PeakMemMb");
+        sb.AppendLine("image,threshold,blockSizes,stride,K,tau,minArea,ROC_AUC,PRAUC,NSS,IoU,Dice,MCC,Fpr95TPR,AP,BoundaryF1,RegionIoU,TimeMs,PeakMemMb");
         foreach (var file in files)
         {
             string name = Path.GetFileName(file);
@@ -69,8 +69,23 @@ public static class CopyMoveEvalRunner
             {
                 time = ElaAdvanced.MeasureElapsedMs(() =>
                 {
-                    var (raw, norm, blocks, cand, kept) = CopyMoveDense.ComputeCopyMoveMap(img,
-                        blockSize, stride, k, tau, minShift, eps, minPts, morphKernel);
+                    var merged = new Mat(img.Rows, img.Cols, MatType.CV_32F, Scalar.All(0));
+                    foreach (var bs in blockSizes)
+                    {
+                        var (rawS, normS, _, _, kept) = CopyMoveDense.ComputeCopyMoveMap(img,
+                            bs, stride, k, tau, minShift, eps, minPts, morphKernel);
+                        Console.WriteLine($"[{name}] scale{bs} matches={kept}");
+                        Cv2.Add(merged, normS, merged);
+                        rawS.Dispose();
+                        normS.Dispose();
+                    }
+                    merged.ConvertTo(merged, MatType.CV_32F, 1.0 / blockSizes.Length);
+                    var raw = merged.Clone();
+                    double p95 = Percentile(raw, 0.95);
+                    if (p95 > 0)
+                        merged.ConvertTo(merged, MatType.CV_32F, 1.0 / p95);
+                    Cv2.Min(merged, 1.0, merged);
+                    var norm = merged;
                     if (threshold < 0)
                         threshold = CopyMoveMetrics.ComputeOtsuThreshold(norm);
                     using var bin = CopyMoveMetrics.BinarizeMap(norm, threshold);
@@ -93,7 +108,7 @@ public static class CopyMoveEvalRunner
                     using var overlapMat = new Mat();
                     Cv2.BitwiseAnd(gt, bin, overlapMat);
                     int overlap = Cv2.CountNonZero(overlapMat);
-                    Console.WriteLine($"[{name}] blocks={blocks} candidates={cand} kept={kept} nonZeroPixels={nonZero} time={time} ms");
+                    Console.WriteLine($"[{name}] nonZeroPixels={nonZero} time={time} ms");
                     Console.WriteLine($"[{name}] predPix={predPix} gtPix={gtPix} overlap={overlap}");
                     SaveBase64(raw, Path.Combine(debugDir, $"{baseName}_map_raw.base64"));
                     SaveBase64(norm, Path.Combine(debugDir, $"{baseName}_map_norm.base64"));
@@ -103,8 +118,17 @@ public static class CopyMoveEvalRunner
                     bin.Dispose();
                 });
             });
-            sb.AppendLine($"{name},{threshold:F3},{blockSize},{stride},{k},{tau:F2},{minArea},{roc:F3},{pr:F3},{nss:F3},{iou:F3},{dice:F3},{mcc:F3},{fpr95:F3},{ap:F3},{bf1:F3},{regIoU:F3},{time},{mem:F2}");
+            sb.AppendLine($"{name},{threshold:F3},{string.Join('-', blockSizes)},{stride},{k},{tau:F2},{minArea},{roc:F3},{pr:F3},{nss:F3},{iou:F3},{dice:F3},{mcc:F3},{fpr95:F3},{ap:F3},{bf1:F3},{regIoU:F3},{time},{mem:F2}");
         }
         File.WriteAllText(csvPath, sb.ToString());
+    }
+
+    static double Percentile(Mat m, double percentile)
+    {
+        using var flat = m.Reshape(1, m.Rows * m.Cols);
+        Cv2.Sort(flat, flat, SortFlags.Ascending);
+        long total = flat.Total();
+        int idx = (int)Math.Clamp((long)(percentile * (total - 1)), 0, total - 1);
+        return flat.Get<float>(idx);
     }
 }

@@ -23,7 +23,7 @@ if (args[0] == "--copy-move-eval")
 {
     string cmDataRoot = ".";
     string cmReportDir = "bench/copymove";
-    int cmBlockSize = 16;
+    int[] cmBlockSizes = new[] { 8, 16, 32 };
     int cmStride = 4;
     int cmK = 5;
     double cmTau = 0.10;
@@ -44,8 +44,10 @@ if (args[0] == "--copy-move-eval")
             case "--report-dir" when i + 1 < args.Length:
                 cmReportDir = args[++i];
                 break;
-            case "--blockSize" when i + 1 < args.Length:
-                cmBlockSize = int.Parse(args[++i]);
+            case "--blockSizes" when i + 1 < args.Length:
+                cmBlockSizes = args[++i]
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(int.Parse).ToArray();
                 break;
             case "--stride" when i + 1 < args.Length:
                 cmStride = int.Parse(args[++i]);
@@ -77,7 +79,7 @@ if (args[0] == "--copy-move-eval")
         }
     }
 
-    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSize, cmStride, cmK, cmTau,
+    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSizes, cmStride, cmK, cmTau,
         cmMinShift, cmEps, cmMinPts, cmMorphKernel, cmMinArea, cmThresholdFixed);
     return;
 }

@@ -33,7 +33,7 @@ public static class CopyMoveDense
         double eps = 5.0,
         int minPts = 20,
         int morphKernel = 5,
-        double normPercentile = 0.99)
+        double normPercentile = 0.95)
     {
         using var gray = new Mat();
         if (src.Channels() > 1)
@@ -101,23 +101,35 @@ public static class CopyMoveDense
         {
             var offsets = matches.Select(m => new Point2d(m.dx, m.dy)).ToList();
             var labels = Dbscan(offsets, eps, minPts);
-            for (int mi = 0; mi < matches.Count; mi++)
+            var groups = matches.Select((m, idx) => (m, idx))
+                .GroupBy(t => labels[t.idx])
+                .Where(g => g.Key >= 0);
+            foreach (var g in groups)
             {
-                if (labels[mi] == -1) continue;
-                keptMatches++;
-                var match = matches[mi];
-                var p1 = positions[match.i];
-                var p2 = positions[match.j];
-                for (int yy = 0; yy < blockSize; yy++)
+                var dxs = g.Select(t => (double)t.m.dx).ToArray();
+                var dys = g.Select(t => (double)t.m.dy).ToArray();
+                double meanDx = dxs.Average();
+                double meanDy = dys.Average();
+                double varDx = dxs.Select(d => (d - meanDx) * (d - meanDx)).Average();
+                double varDy = dys.Select(d => (d - meanDy) * (d - meanDy)).Average();
+                if (varDx + varDy > 25) continue;
+                foreach (var t in g)
                 {
-                    for (int xx = 0; xx < blockSize; xx++)
+                    keptMatches++;
+                    var match = t.m;
+                    var p1 = positions[match.i];
+                    var p2 = positions[match.j];
+                    for (int yy = 0; yy < blockSize; yy++)
                     {
-                        int x1 = p1.X + xx;
-                        int y1 = p1.Y + yy;
-                        int x2 = p2.X + xx;
-                        int y2 = p2.Y + yy;
-                        raw.Set(y1, x1, raw.At<float>(y1, x1) + 1f);
-                        raw.Set(y2, x2, raw.At<float>(y2, x2) + 1f);
+                        for (int xx = 0; xx < blockSize; xx++)
+                        {
+                            int x1 = p1.X + xx;
+                            int y1 = p1.Y + yy;
+                            int x2 = p2.X + xx;
+                            int y2 = p2.Y + yy;
+                            raw.Set(y1, x1, raw.At<float>(y1, x1) + 1f);
+                            raw.Set(y2, x2, raw.At<float>(y2, x2) + 1f);
+                        }
                     }
                 }
             }

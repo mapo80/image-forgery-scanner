@@ -638,33 +638,24 @@ dotnet run --project ElaSegmentation.Cmd \
 
 | Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | Fpr95TPR | AP | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 010.png | 0.656 | 0.004 | -0.255 | 0.000 | 0.000 | -0.014 | 0.361 | 0.004 | 0.000 | 0.000 | 1494 | 3.97 |
-| 012.png | 0.711 | 0.086 | -0.245 | 0.015 | 0.030 | -0.060 | 0.364 | 0.086 | 0.028 | 0.009 | 10021 | 8.62 |
-| 015.png | 0.717 | 0.163 | 0.000 | 0.000 | 0.000 | 0.000 | 0.474 | 0.163 | 0.000 | 0.000 | 863 | 0.85 |
-| **Mean ± Std** | 0.695 ± 0.027 | 0.084 ± 0.065 | -0.167 ± 0.118 | 0.005 ± 0.007 | 0.010 ± 0.014 | -0.025 ± 0.026 | 0.400 ± 0.053 | 0.084 ± 0.065 | 0.009 ± 0.013 | 0.003 ± 0.004 | 4126 ± 4176 | 4.48 ± 3.19 |
+| 012.png | 0.680 | 0.079 | -0.224 | 0.016 | 0.031 | -0.025 | 0.379 | 0.079 | 0.022 | 0.011 | 22017 | 0.82 |
+| 175.png | 0.679 | 0.039 | 0.000 | 0.000 | 0.000 | 0.000 | 0.373 | 0.039 | 0.000 | 0.000 | 1126 | 0.00 |
+| **Mean (50 imgs)** | 0.532 | 0.079 | 0.062 | 0.012 | 0.015 | 0.013 | 0.637 | 0.079 | 0.007 | 0.000 | 1803 | 1.97 |
 
-Lowering the fixed threshold to **0.03** produced the first non-zero overlap on image `012.png` (IoU≈0.015), while `010.png` still shows zero intersection with the ground-truth mask, indicating a registration issue.
+Multi-scale block sizes (8/16/32) with 95th-percentile normalization yield a small overlap on `012.png`, while images such as `175.png` remain empty after Otsu thresholding.
 
-<details><summary>010.png (misaligned)</summary>
-
-![raw](bench/copymove/debug/010_map_raw.base64)
-![norm](bench/copymove/debug/010_map_norm.base64)
-![bin](bench/copymove/debug/010_map_bin.base64)
-![gt](bench/copymove/debug/010_gt_resized.base64)
-</details>
-
-<details><summary>012.png (overlap)</summary>
+<details><summary>012.png (success)</summary>
 
 ![raw](bench/copymove/debug/012_map_raw.base64)
 ![norm](bench/copymove/debug/012_map_norm.base64)
 ![bin](bench/copymove/debug/012_map_bin.base64)
-![gt](bench/copymove/debug/012_gt_resized.base64)
+
 </details>
 
-<details><summary>015.png (empty)</summary>
+<details><summary>175.png (failure)</summary>
 
-![raw](bench/copymove/debug/015_map_raw.base64)
-![norm](bench/copymove/debug/015_map_norm.base64)
-![bin](bench/copymove/debug/015_map_bin.base64)
-![gt](bench/copymove/debug/015_gt_resized.base64)
+![raw](bench/copymove/debug/175_map_raw.base64)
+![norm](bench/copymove/debug/175_map_norm.base64)
+![bin](bench/copymove/debug/175_map_bin.base64)
+
 </details>

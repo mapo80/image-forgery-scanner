@@ -11,10 +11,44 @@ public static class CopyMoveMetrics
 {
     public static double ComputeOtsuThreshold(Mat map)
     {
-        using var tmp = new Mat();
-        map.ConvertTo(tmp, MatType.CV_8U, 255);
-        double t = Cv2.Threshold(tmp, new Mat(), 0, 255, ThresholdTypes.Otsu);
-        return t / 255.0;
+        var hist = new int[256];
+        int total = 0;
+        int h = map.Rows;
+        int w = map.Cols;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float v = map.At<float>(y, x);
+                if (v <= 0) continue;
+                int bin = Math.Clamp((int)Math.Round(v * 255), 0, 255);
+                hist[bin]++;
+                total++;
+            }
+        }
+        if (total == 0) return 1.0;
+        double sum = 0;
+        for (int i = 0; i < 256; i++)
+            sum += i * hist[i];
+        double sumB = 0, maxVar = 0;
+        int wB = 0, threshold = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            wB += hist[i];
+            if (wB == 0) continue;
+            int wF = total - wB;
+            if (wF == 0) break;
+            sumB += i * hist[i];
+            double mB = sumB / wB;
+            double mF = (sum - sumB) / wF;
+            double varBetween = wB * wF * (mB - mF) * (mB - mF);
+            if (varBetween > maxVar)
+            {
+                maxVar = varBetween;
+                threshold = i;
+            }
+        }
+        return threshold / 255.0;
     }
 
     public static Mat BinarizeMap(Mat map, double threshold)
