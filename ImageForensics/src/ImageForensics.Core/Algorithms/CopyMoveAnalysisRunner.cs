@@ -8,15 +8,11 @@ namespace ImageForensics.Core.Algorithms;
 
 public static class CopyMoveAnalysisRunner
 {
-    static byte[,] LoadMask(string path)
+    static Mat LoadMask(string path)
     {
-        using var m = Cv2.ImRead(path, ImreadModes.Grayscale);
-        int w = m.Width; int h = m.Height;
-        var mask = new byte[w, h];
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                mask[x, y] = m.At<byte>(y, x) > 127 ? (byte)1 : (byte)0;
-        return mask;
+        var m = Cv2.ImRead(path, ImreadModes.Grayscale);
+        Cv2.Threshold(m, m, 127, 1, ThresholdTypes.Binary);
+        return m;
     }
 
     public static void Run(
@@ -43,16 +39,16 @@ public static class CopyMoveAnalysisRunner
             string name = Path.GetFileName(file);
             string maskPath = Path.Combine(maskDir, name);
             if (!File.Exists(maskPath)) continue;
-            using var img = Cv2.ImRead(file, ImreadModes.Grayscale);
-            var gt = LoadMask(maskPath);
+            using var img = Cv2.ImRead(file, ImreadModes.Color);
+            using var gt = LoadMask(maskPath);
             double roc = 0, pr = 0, nss = 0, fpr95 = 0, ap = 0;
             double iou = 0, dice = 0, mcc = 0, bf1 = 0, regIoU = 0;
-            double thr = 0; bool[,] pred = new bool[1,1];
+            double thr = 0;
             long time = 0; double mem = ElaAdvanced.MeasurePeakMemory(() =>
             {
                 time = ElaAdvanced.MeasureElapsedMs(() =>
                 {
-                    var map = CopyMoveMetrics.ComputeCopyMoveMap(img, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpen, morphClose, 0.99, minAreaPct);
+                    using var map = CopyMoveMetrics.ComputeCopyMoveMap(img, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpen, morphClose, 0.99, minAreaPct);
                     roc = CopyMoveMetrics.ComputeRocAucPixel(gt, map);
                     pr = CopyMoveMetrics.ComputePraucPixel(gt, map);
                     nss = CopyMoveMetrics.ComputeNss(gt, map);
@@ -61,7 +57,7 @@ public static class CopyMoveAnalysisRunner
                     thr = thresholdMode.Equals("percentile", StringComparison.OrdinalIgnoreCase)
                         ? CopyMoveMetrics.ComputePercentileThreshold(map, percentile)
                         : CopyMoveMetrics.ComputeOtsuThreshold(map);
-                    pred = CopyMoveMetrics.BinarizeMap(map, thr);
+                    using var pred = CopyMoveMetrics.BinarizeMap(map, thr);
                     iou = CopyMoveMetrics.ComputeIoUPixel(gt, pred);
                     dice = CopyMoveMetrics.ComputeDicePixel(gt, pred);
                     mcc = CopyMoveMetrics.ComputeMccPixel(gt, pred);

@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenCvSharp;
-using OpenCvSharp.Extensions;
 using OpenCvSharp.Features2D;
 
 namespace ImageForensics.Core.Algorithms;
@@ -13,7 +11,7 @@ public static class CopyMoveMetrics
 {
     private static readonly ConcurrentDictionary<int, SIFT> SiftCache = new();
 
-    public static float[,] ComputeCopyMoveMap(
+    public static Mat ComputeCopyMoveMap(
         Mat src,
         int siftFeatures = 500,
         double loweRatio = 0.75,
@@ -24,14 +22,19 @@ public static class CopyMoveMetrics
         double normPercentile = 0.99,
         double minAreaPct = 0.001)
     {
+        using var gray = new Mat();
         if (src.Channels() > 1)
-            Cv2.CvtColor(src, src, ColorConversionCodes.BGR2GRAY);
+            Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
+        else
+            src.CopyTo(gray);
+
+        var empty = new Mat(gray.Size(), MatType.CV_32F, Scalar.All(0));
 
         var sift = SiftCache.GetOrAdd(siftFeatures, f => SIFT.Create(f));
         using var descriptors = new Mat();
-        sift.DetectAndCompute(src, null, out KeyPoint[] keypoints, descriptors);
+        sift.DetectAndCompute(gray, null, out KeyPoint[] keypoints, descriptors);
         if (descriptors.Empty() || keypoints.Length < 2)
-            return new float[src.Width, src.Height];
+            return empty;
 
         using var matcher = new FlannBasedMatcher();
         var knn = matcher.KnnMatch(descriptors, descriptors, 2);
@@ -41,27 +44,27 @@ public static class CopyMoveMetrics
             .Select(m => m[0])
             .ToArray();
         if (rawMatches.Length < 3)
-            return new float[src.Width, src.Height];
+            return empty;
 
-        var srcPts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
-        int[] labels = Dbscan(srcPts, clusterEps, clusterMinPts);
+        var pts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
+        int[] labels = Dbscan(pts, clusterEps, clusterMinPts);
         var matches = rawMatches.Where((m, i) => labels[i] >= 0).ToArray();
         if (matches.Length == 0)
-            return new float[src.Width, src.Height];
+            return empty;
 
-        var map = new Mat(src.Size(), MatType.CV_32FC1, Scalar.All(0));
+        var map = new Mat(gray.Size(), MatType.CV_32F, Scalar.All(0));
         foreach (var m in matches)
         {
             var pt = keypoints[m.QueryIdx].Pt;
             Cv2.Circle(map, (int)pt.X, (int)pt.Y, 5, Scalar.All(1), -1);
         }
 
-        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(morphOpenKernel, morphOpenKernel));
+        using var kOpen = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphOpenKernel, morphOpenKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Open, kOpen);
-        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(morphCloseKernel, morphCloseKernel));
+        using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphCloseKernel, morphCloseKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
 
-        int minArea = (int)(src.Width * src.Height * minAreaPct);
+        int minArea = (int)(gray.Width * gray.Height * minAreaPct);
         using var bin = new Mat();
         Cv2.Threshold(map, bin, 0.01, 1, ThresholdTypes.Binary);
         using var labelsMat = new Mat();
@@ -78,39 +81,18 @@ public static class CopyMoveMetrics
             }
         }
 
-        map.GetArray(out float[] data);
-        var sorted = (float[])data.Clone();
-        Array.Sort(sorted);
-        float q = sorted[(int)(normPercentile * (sorted.Length - 1))];
+        using var flat = map.Reshape(1, map.Rows * map.Cols);
+        Cv2.Sort(flat, flat, SortFlags.Ascending);
+        long total = flat.Total();
+        int idx = (int)Math.Clamp((long)(normPercentile * (total - 1)), 0, total - 1);
+        float q = flat.Get<float>(idx);
         if (q > 0)
         {
-            Cv2.Divide(map, new Scalar(q), map);
+            Cv2.Divide(map, q, map);
             Cv2.Min(map, 1.0, map);
         }
 
-        int w = src.Width; int h = src.Height;
-        var result = new float[w, h];
-        map.GetArray(out data);
-        int idx = 0;
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                result[x, y] = data[idx++];
-        return result;
-    }
-
-    public static float[,] ComputeCopyMoveMap(
-        Bitmap img,
-        int siftFeatures = 500,
-        double loweRatio = 0.75,
-        double clusterEps = 20.0,
-        int clusterMinPts = 5,
-        int morphOpenKernel = 3,
-        int morphCloseKernel = 5,
-        double normPercentile = 0.99,
-        double minAreaPct = 0.001)
-    {
-        using var mat = BitmapConverter.ToMat(img);
-        return ComputeCopyMoveMap(mat, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpenKernel, morphCloseKernel, normPercentile, minAreaPct);
+        return map;
     }
 
     static int[] Dbscan(Point2f[] pts, double eps, int minPts)
@@ -161,27 +143,116 @@ public static class CopyMoveMetrics
         }
     }
 
-    public static double ComputeRocAucPixel(byte[,] mask, float[,] map) => ElaMetrics.ComputeRocAucPixel(mask, map);
-    public static double ComputePraucPixel(byte[,] mask, float[,] map) => ElaMetrics.ComputePraucPixel(mask, map);
-    public static double ComputeNss(byte[,] mask, float[,] map) => ElaMetrics.ComputeNss(mask, map);
-    public static double ComputeFprAt95Tpr(byte[,] mask, float[,] map) => ElaMetrics.ComputeFprAtTpr(mask, map, 0.95);
-    public static double ComputeAveragePrecision(byte[,] mask, float[,] map) => ElaMetrics.ComputeAveragePrecision(mask, map);
-    public static double ComputeOtsuThreshold(float[,] map) => ElaMetrics.ComputeOtsuThreshold(map);
-    public static double ComputePercentileThreshold(float[,] map, double percentile = 0.95)
+    public static double ComputeRocAucPixel(Mat mask, Mat map)
     {
-        int w = map.GetLength(0); int h = map.GetLength(1);
-        var arr = new float[w * h]; int idx = 0;
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                arr[idx++] = map[x, y];
-        Array.Sort(arr);
-        int pos = (int)(percentile * (arr.Length - 1));
-        return arr[pos];
+        ToArrays(mask, map, out var m, out var f);
+        return ElaMetrics.ComputeRocAucPixel(m, f);
     }
-    public static bool[,] BinarizeMap(float[,] map, double threshold) => ElaMetrics.BinarizeElaMap(map, threshold);
-    public static double ComputeIoUPixel(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeIoUPixel(mask, pred);
-    public static double ComputeDicePixel(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeDicePixel(mask, pred);
-    public static double ComputeMccPixel(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeMccPixel(mask, pred);
-    public static double ComputeBoundaryF1(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeBoundaryF1(mask, pred, 1);
-    public static double ComputeRegionIoU(byte[,] mask, bool[,] pred) => ElaMetrics.ComputeRegionIoU(mask, pred);
+
+    public static double ComputePraucPixel(Mat mask, Mat map)
+    {
+        ToArrays(mask, map, out var m, out var f);
+        return ElaMetrics.ComputePraucPixel(m, f);
+    }
+
+    public static double ComputeNss(Mat mask, Mat map)
+    {
+        ToArrays(mask, map, out var m, out var f);
+        return ElaMetrics.ComputeNss(m, f);
+    }
+
+    public static double ComputeFprAt95Tpr(Mat mask, Mat map)
+    {
+        ToArrays(mask, map, out var m, out var f);
+        return ElaMetrics.ComputeFprAtTpr(m, f, 0.95);
+    }
+
+    public static double ComputeAveragePrecision(Mat mask, Mat map)
+    {
+        ToArrays(mask, map, out var m, out var f);
+        return ElaMetrics.ComputeAveragePrecision(m, f);
+    }
+
+    public static double ComputeOtsuThreshold(Mat map)
+    {
+        return Cv2.Threshold(map, new Mat(), 0, 1, ThresholdTypes.Otsu);
+    }
+
+    public static double ComputePercentileThreshold(Mat map, double percentile = 0.95)
+    {
+        using var flat = map.Reshape(1, map.Rows * map.Cols);
+        Cv2.Sort(flat, flat, SortFlags.Ascending);
+        long total = flat.Total();
+        int idx = (int)Math.Clamp((long)(percentile * (total - 1)), 0, total - 1);
+        return flat.Get<float>(idx);
+    }
+
+    public static Mat BinarizeMap(Mat map, double threshold)
+    {
+        var binary = new Mat();
+        Cv2.Threshold(map, binary, threshold, 255, ThresholdTypes.Binary);
+        binary.ConvertTo(binary, MatType.CV_8U);
+        return binary;
+    }
+
+    public static double ComputeIoUPixel(Mat mask, Mat pred)
+    {
+        ToBinaryArrays(mask, pred, out var m, out var p);
+        return ElaMetrics.ComputeIoUPixel(m, p);
+    }
+
+    public static double ComputeDicePixel(Mat mask, Mat pred)
+    {
+        ToBinaryArrays(mask, pred, out var m, out var p);
+        return ElaMetrics.ComputeDicePixel(m, p);
+    }
+
+    public static double ComputeMccPixel(Mat mask, Mat pred)
+    {
+        ToBinaryArrays(mask, pred, out var m, out var p);
+        return ElaMetrics.ComputeMccPixel(m, p);
+    }
+
+    public static double ComputeBoundaryF1(Mat mask, Mat pred)
+    {
+        ToBinaryArrays(mask, pred, out var m, out var p);
+        return ElaMetrics.ComputeBoundaryF1(m, p, 1);
+    }
+
+    public static double ComputeRegionIoU(Mat mask, Mat pred)
+    {
+        ToBinaryArrays(mask, pred, out var m, out var p);
+        return ElaMetrics.ComputeRegionIoU(m, p);
+    }
+
+    static void ToArrays(Mat mask, Mat map, out byte[,] m, out float[,] f)
+    {
+        int w = map.Width; int h = map.Height;
+        m = new byte[w, h];
+        f = new float[w, h];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                m[x, y] = mask.At<byte>(y, x) > 0 ? (byte)1 : (byte)0;
+                f[x, y] = map.At<float>(y, x);
+            }
+        }
+    }
+
+    static void ToBinaryArrays(Mat mask, Mat pred, out byte[,] m, out bool[,] p)
+    {
+        int w = mask.Width; int h = mask.Height;
+        m = new byte[w, h];
+        p = new bool[w, h];
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                m[x, y] = mask.At<byte>(y, x) > 0 ? (byte)1 : (byte)0;
+                p[x, y] = pred.At<byte>(y, x) > 0;
+            }
+        }
+    }
 }
+
