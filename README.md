@@ -638,20 +638,33 @@ dotnet run --project ElaSegmentation.Cmd \
 
 | Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | Fpr95TPR | AP | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 010.png | 0.656 | 0.004 | -0.255 | 0.000 | 0.000 | -0.014 | 0.361 | 0.004 | 0.000 | 0.000 | 1041 | 4.86 |
-| 015.png | 0.717 | 0.163 | 0.000 | 0.000 | 0.000 | 0.000 | 0.474 | 0.163 | 0.000 | 0.000 | 547 | 1.21 |
-| **Mean ± Std** | 0.533 ± 0.161 | 0.080 ± 0.111 | 0.083 ± 0.578 | 0.014 ± 0.079 | 0.019 ± 0.102 | 0.016 ± 0.106 | 0.637 ± 0.219 | 0.080 ± 0.111 | 0.008 ± 0.048 | 0.007 ± 0.043 | 736 ± 961 | 1.82 ± 7.16 |
+| 010.png | 0.656 | 0.004 | -0.255 | 0.000 | 0.000 | -0.014 | 0.361 | 0.004 | 0.000 | 0.000 | 1494 | 3.97 |
+| 012.png | 0.711 | 0.086 | -0.245 | 0.015 | 0.030 | -0.060 | 0.364 | 0.086 | 0.028 | 0.009 | 10021 | 8.62 |
+| 015.png | 0.717 | 0.163 | 0.000 | 0.000 | 0.000 | 0.000 | 0.474 | 0.163 | 0.000 | 0.000 | 863 | 0.85 |
+| **Mean ± Std** | 0.695 ± 0.027 | 0.084 ± 0.065 | -0.167 ± 0.118 | 0.005 ± 0.007 | 0.010 ± 0.014 | -0.025 ± 0.026 | 0.400 ± 0.053 | 0.084 ± 0.065 | 0.009 ± 0.013 | 0.003 ± 0.004 | 4126 ± 4176 | 4.48 ± 3.19 |
 
-<details><summary>010.png (success)</summary>
+Lowering the fixed threshold to **0.03** produced the first non-zero overlap on image `012.png` (IoU≈0.015), while `010.png` still shows zero intersection with the ground-truth mask, indicating a registration issue.
+
+<details><summary>010.png (misaligned)</summary>
 
 ![raw](bench/copymove/debug/010_map_raw.base64)
 ![norm](bench/copymove/debug/010_map_norm.base64)
 ![bin](bench/copymove/debug/010_map_bin.base64)
+![gt](bench/copymove/debug/010_gt_resized.base64)
 </details>
 
-<details><summary>015.png (failure)</summary>
+<details><summary>012.png (overlap)</summary>
+
+![raw](bench/copymove/debug/012_map_raw.base64)
+![norm](bench/copymove/debug/012_map_norm.base64)
+![bin](bench/copymove/debug/012_map_bin.base64)
+![gt](bench/copymove/debug/012_gt_resized.base64)
+</details>
+
+<details><summary>015.png (empty)</summary>
 
 ![raw](bench/copymove/debug/015_map_raw.base64)
 ![norm](bench/copymove/debug/015_map_norm.base64)
 ![bin](bench/copymove/debug/015_map_bin.base64)
+![gt](bench/copymove/debug/015_gt_resized.base64)
 </details>

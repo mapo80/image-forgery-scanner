@@ -59,6 +59,7 @@ public static class CopyMoveEvalRunner
             using var gt = LoadMask(maskPath);
             if (gt.Width != img.Width || gt.Height != img.Height)
                 Cv2.Resize(gt, gt, new Size(img.Width, img.Height), 0, 0, InterpolationFlags.Nearest);
+            SaveBase64(gt, Path.Combine(debugDir, $"{baseName}_gt_resized.base64"), true);
             Console.WriteLine($"[{name}] maskExists={File.Exists(maskPath)} imgSize={img.Width}x{img.Height} maskSize={gt.Width}x{gt.Height}");
             double roc = 0, pr = 0, nss = 0, fpr95 = 0, ap = 0;
             double iou = 0, dice = 0, mcc = 0, bf1 = 0, regIoU = 0;
@@ -87,13 +88,13 @@ public static class CopyMoveEvalRunner
                     var nz = new Mat();
                     Cv2.Compare(norm, 0, nz, CmpType.GT);
                     int nonZero = Cv2.CountNonZero(nz);
-                    int nonZeroMap = Cv2.CountNonZero(bin);
-                    int nonZeroGt = Cv2.CountNonZero(gt);
+                    int predPix = Cv2.CountNonZero(bin);
+                    int gtPix = Cv2.CountNonZero(gt);
                     using var overlapMat = new Mat();
                     Cv2.BitwiseAnd(gt, bin, overlapMat);
                     int overlap = Cv2.CountNonZero(overlapMat);
                     Console.WriteLine($"[{name}] blocks={blocks} candidates={cand} kept={kept} nonZeroPixels={nonZero} time={time} ms");
-                    Console.WriteLine($"[{name}] nonZeroMap={nonZeroMap} nonZeroGT={nonZeroGt} overlap={overlap}");
+                    Console.WriteLine($"[{name}] predPix={predPix} gtPix={gtPix} overlap={overlap}");
                     SaveBase64(raw, Path.Combine(debugDir, $"{baseName}_map_raw.base64"));
                     SaveBase64(norm, Path.Combine(debugDir, $"{baseName}_map_norm.base64"));
                     SaveBase64(bin, Path.Combine(debugDir, $"{baseName}_map_bin.base64"), true);
