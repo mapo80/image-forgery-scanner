@@ -105,13 +105,18 @@ public static class CopyMoveDense
             double eps = tau * Math.Max(w, h);
             var offsets = matches.Select(m => new Point2d(m.dx, m.dy)).ToList();
             var labels = Dbscan(offsets, eps, minPts);
-            var groups = matches.Select((m, idx) => (m, idx))
+            var grouped = matches.Select((m, idx) => (m, idx))
                 .GroupBy(t => labels[t.idx])
-                .Where(g => g.Key >= 0);
-            clusterCount = groups.Count();
-            foreach (var g in groups)
+                .Where(g => g.Key >= 0)
+                .Select(g => g.Select(t => t.m).ToList())
+                .ToList();
+            clusterCount = grouped.Count;
+            var counts = grouped.Select(g => g.Count).OrderBy(c => c).ToArray();
+            double blockCountMed = 0;
+            if (counts.Length > 0)
+                blockCountMed = counts.Length % 2 == 1 ? counts[counts.Length / 2] : (counts[counts.Length / 2 - 1] + counts[counts.Length / 2]) / 2.0;
+            foreach (var clusterMatches in grouped)
             {
-                var clusterMatches = g.Select(t => t.m).ToList();
                 int clusterArea = clusterMatches.Count * blockSize * blockSize;
                 if (clusterArea < minArea) continue;
                 var srcPts = clusterMatches.Select(m => new Point2f(positions[m.i].X + blockSize / 2f, positions[m.i].Y + blockSize / 2f)).ToArray();
@@ -121,7 +126,7 @@ public static class CopyMoveDense
                 Mat inliers = new();
                 Cv2.EstimateAffine2D(srcMat, dstMat, inliers);
                 int inlierCount = inliers.Empty() ? 0 : Cv2.CountNonZero(inliers);
-                if (inlierCount < 0.6 * clusterMatches.Count) continue;
+                if (inlierCount < 0.6 * blockCountMed) continue;
                 keptClusters++;
                 for (int t = 0; t < clusterMatches.Count; t++)
                 {

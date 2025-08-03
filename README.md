@@ -638,11 +638,12 @@ dotnet run --project ElaSegmentation.Cmd \
 
 | Image | RocAuc | Prauc | NSS | IoU | Dice | MCC | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 034.png | 0.511 | 0.136 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 3970 | 0.00 |
-| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 4263 | 88.45 |
-| **Mean ± Std (50 imgs)** | 0.525 ± 0.162 | 0.069 ± 0.086 | -0.001 ± 0.006 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 3863 ± 433 | 3.61 ± 14.59 |
+| 034.png | 0.511 | 0.136 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 1505 | 0.00 |
+| 005.png | 0.177 | 0.044 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 2094 | 92.04 |
+| 012.png | 0.739 | 0.093 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 1301 | 17.10 |
+| **Mean ± Std (50 imgs)** | 0.534 ± 0.183 | 0.102 ± 0.186 | 0.119 ± 0.510 | 0.040 ± 0.170 | 0.046 ± 0.182 | 0.047 ± 0.186 | 0.021 ± 0.102 | 0.029 ± 0.124 | 1752 ± 368 | 3.57 ± 13.45 |
 
-Updated defaults (block sizes 8/12/16/24, stride≈bs/3, K=10, τ=0.08) improve overlap on `118.png` while `005.png` remains undetected.
+Hybrid Otsu/quantile thresholding and a lower adaptive min-area yield non-zero overlap on a handful of images, though many cases such as `005.png` and `012.png` remain challenging.
 
 <details><summary>034.png (success)</summary>
 
@@ -657,5 +658,13 @@ Updated defaults (block sizes 8/12/16/24, stride≈bs/3, K=10, τ=0.08) improve 
 ![raw](bench/copymove/debug/005_map_raw.base64)
 ![norm](bench/copymove/debug/005_map_norm.base64)
 ![bin](bench/copymove/debug/005_map_bin.base64)
+
+</details>
+
+<details><summary>012.png (failure)</summary>
+
+![raw](bench/copymove/debug/012_map_raw.base64)
+![norm](bench/copymove/debug/012_map_norm.base64)
+![bin](bench/copymove/debug/012_map_bin.base64)
 
 </details>

@@ -69,7 +69,7 @@ public static class CopyMoveEvalRunner
             {
                 time = ElaAdvanced.MeasureElapsedMs(() =>
                 {
-                    int minArea = Math.Max(30, (int)(0.002 * img.Width * img.Height));
+                    int minArea = Math.Max(20, (int)(0.0004 * img.Width * img.Height));
                     var merged = new Mat(img.Rows, img.Cols, MatType.CV_32F, Scalar.All(0));
                     int totalMatches = 0, totalClusters = 0, keptClusters = 0;
                     bool skip = false;
@@ -108,7 +108,9 @@ public static class CopyMoveEvalRunner
                     var norm = merged;
                     double q90 = Percentile(norm, 0.90);
                     double otsu = CopyMoveMetrics.ComputeOtsuThreshold(norm);
-                    threshold = threshold >= 0 ? threshold : Math.Max(otsu, q90);
+                    double thr = Math.Max(otsu, q90);
+                    thr = Math.Max(0.1, Math.Min(0.9, thr));
+                    threshold = thresholdFixed >= 0 ? thresholdFixed : thr;
                     using var bin = CopyMoveMetrics.BinarizeMap(norm, threshold);
                     var kernel3 = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
                     Cv2.MorphologyEx(bin, bin, MorphTypes.Open, kernel3);
@@ -128,10 +130,10 @@ public static class CopyMoveEvalRunner
                     raw.Dispose();
                     norm.Dispose();
                     bin.Dispose();
-                    Console.WriteLine($"[{name}] matches={totalMatches} clusters={keptClusters}/{totalClusters} IoU={iou:F3} time={time/1000.0:F2}s");
+                    Console.WriteLine($"[{name}] clusters={keptClusters}/{totalClusters} minArea={minArea} thr={threshold:F2} IoU={iou:F3}");
                 });
             });
-            int minAreaCsv = Math.Max(30, (int)(0.002 * img.Width * img.Height));
+            int minAreaCsv = Math.Max(20, (int)(0.0004 * img.Width * img.Height));
             sb.AppendLine($"{name},{threshold:F3},{string.Join('-', blockSizes)},{k},{tau:F2},{minAreaCsv},{roc:F3},{pr:F3},{nss:F3},{iou:F3},{dice:F3},{mcc:F3},{bf1:F3},{regIoU:F3},{time},{mem:F2}");
         }
         File.WriteAllText(csvPath, sb.ToString());
