@@ -582,9 +582,9 @@ dotnet run --project ElaSegmentation.Cmd \
 
 ## Copy-Move Results
 
-| image | threshold | minAreaPct | kernelOpen | kernelClose | RocAuc | Prauc | NSS | IoU | Dice | MCC | FPR@95TPR | AP | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 005.png | 0.000 | 0.001 | 3 | 5 | 0.500 | 0.044 | 0.000 | 0.075 | 0.140 | 0.000 | 0.954 | 0.044 | 0.000 | 0.038 | 1142 | 95.02 |
+| image | MapMin | MapMax | MapMean | MapMedian | Map95Quantile | ThresholdUsed | RocAuc | Prauc | NSS | IoU | Dice | MCC | FPR@95TPR | AP | BoundaryF1 | RegionIoU | TimeMs | PeakMemMb |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 005.png | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.500 | 0.044 | 0.000 | 0.075 | 0.140 | 0.000 | 0.954 | 0.044 | 0.000 | 0.038 | 1142 | 95.02 |
 | 008.png | 0.000 | 0.001 | 3 | 5 | 0.500 | 0.004 | 0.000 | 0.003 | 0.005 | 0.000 | 0.383 | 0.004 | 0.000 | 0.001 | 569 | 45.28 |
 | 010.png | 0.000 | 0.001 | 3 | 5 | 0.500 | 0.004 | 0.000 | 0.003 | 0.006 | 0.000 | 0.361 | 0.004 | 0.000 | 0.002 | 622 | 37.51 |
 | 012.png | 0.000 | 0.001 | 3 | 5 | 0.500 | 0.093 | 0.000 | 0.056 | 0.107 | 0.000 | 0.349 | 0.093 | 0.000 | 0.028 | 444 | 0.00 |
@@ -637,4 +637,4 @@ dotnet run --project ElaSegmentation.Cmd \
 | mean |  |  |  |  | 0.500 | 0.069 | 0.000 | 0.060 | 0.107 | 0.000 | 0.637 | 0.069 | 0.000 | 0.032 | 496.920 | 4.220 |
 | std |  |  |  |  | 0.000 | 0.086 | 0.000 | 0.065 | 0.107 | 0.000 | 0.220 | 0.086 | 0.000 | 0.046 | 104.416 | 15.765 |
 
-Average IoU ≈0.060 ± 0.065 and Dice ≈0.107 ± 0.107, roughly unchanged from the previous iteration.
+Full per-image metrics are available in [bench/copymove/metrics.csv](bench/copymove/metrics.csv). Despite the added diagnostics and threshold selection, maps remain largely empty and IoU/Dice remain near zero.

@@ -28,12 +28,15 @@ int parallelImages = 1;
 int siftFeatures = 1000;
 double loweRatio = 0.8;
 string thresholdMode = "otsu";
+double percentileThreshold = 0.50;
+double fixedThreshold = 0.20;
 double minAreaPct = 0.001;
 double clusterEps = 20.0;
 int clusterMinPts = 5;
+double minClusterPct = 0.001;
 int morphOpen = 3;
 int morphClose = 5;
-double percentile = 0.95;
+bool dumpMapStats = false;
 
 bool bench = false;
 bool benchEla = false;
@@ -80,6 +83,9 @@ for (int i = 0; i < args.Length; i++)
         case "--cluster-min-pts" when i + 1 < args.Length:
             clusterMinPts = int.Parse(args[++i]);
             break;
+        case "--min-cluster-pct" when i + 1 < args.Length:
+            minClusterPct = double.Parse(args[++i]);
+            break;
         case "--morph-open" when i + 1 < args.Length:
             morphOpen = int.Parse(args[++i]);
             break;
@@ -89,11 +95,17 @@ for (int i = 0; i < args.Length; i++)
         case "--threshold-mode" when i + 1 < args.Length:
             thresholdMode = args[++i];
             break;
-        case "--percentile" when i + 1 < args.Length:
-            percentile = double.Parse(args[++i]);
+        case "--percentile-threshold" when i + 1 < args.Length:
+            percentileThreshold = double.Parse(args[++i]);
+            break;
+        case "--fixed-threshold" when i + 1 < args.Length:
+            fixedThreshold = double.Parse(args[++i]);
             break;
         case "--min-area-pct" when i + 1 < args.Length:
             minAreaPct = double.Parse(args[++i]);
+            break;
+        case "--dump-map-stats":
+            dumpMapStats = true;
             break;
         case "--benchmark":
             bench = true;
@@ -137,7 +149,7 @@ if (runBenchmark)
         Console.WriteLine("--input-dir is required for benchmarking.");
         return;
     }
-    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpen, morphClose, thresholdMode, percentile, minAreaPct);
+    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages, siftFeatures, loweRatio, clusterEps, clusterMinPts, minClusterPct, morphOpen, morphClose, thresholdMode, percentileThreshold, fixedThreshold, minAreaPct, dumpMapStats);
     return;
 }
 
@@ -184,11 +196,14 @@ static Task RunBenchmarkAsync(
     double loweRatio,
     double clusterEps,
     int clusterMinPts,
+    double minClusterPct,
     int morphOpen,
     int morphClose,
     string thresholdMode,
-    double percentile,
-    double minAreaPct)
+    double percentileThreshold,
+    double fixedThreshold,
+    double minAreaPct,
+    bool dumpMapStats)
 {
     Directory.CreateDirectory(workDir);
     Directory.CreateDirectory(reportDir);
@@ -206,7 +221,7 @@ static Task RunBenchmarkAsync(
     {
         string csvPath = Path.Combine("bench", "copymove", "metrics.csv");
         CopyMoveAnalysisRunner.Run(inputDir, csvPath,
-            siftFeatures, loweRatio, clusterEps, clusterMinPts, morphOpen, morphClose, thresholdMode, percentile, minAreaPct);
+            siftFeatures, loweRatio, clusterEps, clusterMinPts, minClusterPct, morphOpen, morphClose, thresholdMode, percentileThreshold, fixedThreshold, minAreaPct, dumpMapStats);
         Console.WriteLine($"Copy-Move metrics written to {csvPath}");
         return Task.CompletedTask;
     }

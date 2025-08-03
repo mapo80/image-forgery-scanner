@@ -17,6 +17,7 @@ public static class CopyMoveMetrics
         double loweRatio = 0.75,
         double clusterEps = 20.0,
         int clusterMinPts = 5,
+        double minClusterSizePct = 0.001,
         int morphOpenKernel = 3,
         int morphCloseKernel = 5,
         double normPercentile = 0.99,
@@ -48,7 +49,29 @@ public static class CopyMoveMetrics
 
         var pts = rawMatches.Select(m => keypoints[m.QueryIdx].Pt).ToArray();
         int[] labels = Dbscan(pts, clusterEps, clusterMinPts);
-        var matches = rawMatches.Where((m, i) => labels[i] >= 0).ToArray();
+
+        // filter clusters below area threshold
+        double imgArea = gray.Width * gray.Height;
+        double minClusterArea = imgArea * minClusterSizePct;
+        const double circleArea = Math.PI * 25.0; // radius 5 circles
+        var clusterCounts = new Dictionary<int, int>();
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int l = labels[i];
+            if (l >= 0)
+            {
+                clusterCounts.TryGetValue(l, out int c);
+                clusterCounts[l] = c + 1;
+            }
+        }
+        var validClusters = clusterCounts
+            .Where(kv => kv.Value * circleArea >= minClusterArea)
+            .Select(kv => kv.Key)
+            .ToHashSet();
+
+        var matches = rawMatches
+            .Where((m, i) => labels[i] >= 0 && validClusters.Contains(labels[i]))
+            .ToArray();
         if (matches.Length == 0)
             return empty;
 
@@ -63,6 +86,8 @@ public static class CopyMoveMetrics
         Cv2.MorphologyEx(map, map, MorphTypes.Open, kOpen);
         using var kClose = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphCloseKernel, morphCloseKernel));
         Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose);
+        using var kClose2 = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(morphCloseKernel + 2, morphCloseKernel + 2));
+        Cv2.MorphologyEx(map, map, MorphTypes.Close, kClose2);
 
         int minArea = (int)(gray.Width * gray.Height * minAreaPct);
         using var bin = new Mat();
@@ -86,13 +111,55 @@ public static class CopyMoveMetrics
         long total = flat.Total();
         int idx = (int)Math.Clamp((long)(normPercentile * (total - 1)), 0, total - 1);
         float q = flat.Get<float>(idx);
-        if (q > 0)
+        double norm = q;
+        if (norm <= 0)
         {
-            Cv2.Divide(map, q, map);
+            Cv2.MinMaxLoc(map, out _, out double maxVal);
+            norm = maxVal;
+        }
+        if (norm <= 0)
+        {
+            Console.WriteLine("Warning: empty copy-move map");
+            map.SetTo(0);
+        }
+        else
+        {
+            Cv2.Divide(map, norm, map);
             Cv2.Min(map, 1.0, map);
         }
 
         return map;
+    }
+
+    public static (double Min, double Max, double Mean, double Median, double Q95) GetMapStats(Mat map)
+    {
+        Cv2.MinMaxLoc(map, out double minVal, out double maxVal);
+        double mean = Cv2.Mean(map).Val0;
+        using var flat = map.Reshape(1, map.Rows * map.Cols);
+        Cv2.Sort(flat, flat, SortFlags.Ascending);
+        long total = flat.Total();
+        int mid = (int)Math.Clamp((total - 1) / 2, 0, total - 1);
+        int idx95 = (int)Math.Clamp((long)(0.95 * (total - 1)), 0, total - 1);
+        double median = flat.Get<float>(mid);
+        double q95 = flat.Get<float>(idx95);
+        return (minVal, maxVal, mean, median, q95);
+    }
+
+    public enum ThresholdMode
+    {
+        Otsu,
+        Percentile,
+        Fixed
+    }
+
+    public static double SelectThreshold(Mat map, ThresholdMode mode, double percentile = 0.50, double fixedValue = 0.20)
+    {
+        return mode switch
+        {
+            ThresholdMode.Percentile => ComputePercentileThreshold(map, percentile),
+            ThresholdMode.Fixed => fixedValue,
+            _ => ComputeOtsuThreshold(map)
+        };
     }
 
     static int[] Dbscan(Point2f[] pts, double eps, int minPts)
@@ -175,7 +242,10 @@ public static class CopyMoveMetrics
 
     public static double ComputeOtsuThreshold(Mat map)
     {
-        return Cv2.Threshold(map, new Mat(), 0, 1, ThresholdTypes.Otsu);
+        using var tmp = new Mat();
+        map.ConvertTo(tmp, MatType.CV_8U, 255);
+        double t = Cv2.Threshold(tmp, new Mat(), 0, 255, ThresholdTypes.Otsu);
+        return t / 255.0;
     }
 
     public static double ComputePercentileThreshold(Mat map, double percentile = 0.95)
