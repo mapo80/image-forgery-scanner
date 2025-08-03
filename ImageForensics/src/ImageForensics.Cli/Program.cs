@@ -18,6 +18,56 @@ if (args.Length == 0)
     return;
 }
 
+// Dedicated copy-move evaluation runner
+if (args[0] == "--copy-move-eval")
+{
+    string cmDataRoot = ".";
+    string cmReportDir = "bench/copymove";
+    int[] cmBlockSizes = new[] { 8, 12, 16, 24 };
+    int cmK = 10;
+    double cmTau = 0.08;
+    int cmMinShift = 20;
+    int cmMinPts = 20;
+    double cmThresholdFixed = -1; // use hybrid if <0
+
+    for (int i = 1; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--data-root" when i + 1 < args.Length:
+                cmDataRoot = args[++i];
+                break;
+            case "--report-dir" when i + 1 < args.Length:
+                cmReportDir = args[++i];
+                break;
+            case "--blockSizes" when i + 1 < args.Length:
+                cmBlockSizes = args[++i]
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(int.Parse).ToArray();
+                break;
+            case "--K" when i + 1 < args.Length:
+                cmK = int.Parse(args[++i]);
+                break;
+            case "--tau" when i + 1 < args.Length:
+                cmTau = double.Parse(args[++i]);
+                break;
+            case "--minShift" when i + 1 < args.Length:
+                cmMinShift = int.Parse(args[++i]);
+                break;
+            case "--minPts" when i + 1 < args.Length:
+                cmMinPts = int.Parse(args[++i]);
+                break;
+            case "--thresholdFixed" when i + 1 < args.Length:
+                cmThresholdFixed = double.Parse(args[++i]);
+                break;
+        }
+    }
+
+    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSizes, cmK, cmTau,
+        cmMinShift, cmMinPts, cmThresholdFixed);
+    return;
+}
+
 string? image = null;
 string workDir = "results";
 string inputDir = string.Empty;
@@ -25,6 +75,15 @@ string reportDir = "benchmark_report";
 ForensicsCheck checks = ForensicsCheck.All;
 int parallel = 1;
 int parallelImages = 1;
+int siftFeatures = 1000;
+double loweRatio = 0.8;
+string thresholdMode = "otsu";
+double percentileThreshold = 0.50;
+double fixedThreshold = 0.20;
+double minAreaPct = 0.001;
+double clusterEps = 20.0;
+int clusterMinPts = 5;
+int morphKernel = 5;
 
 bool bench = false;
 bool benchEla = false;
@@ -58,6 +117,33 @@ for (int i = 0; i < args.Length; i++)
             break;
         case "--parallel-images" when i + 1 < args.Length:
             parallelImages = int.Parse(args[++i]);
+            break;
+        case "--sift-features" when i + 1 < args.Length:
+            siftFeatures = int.Parse(args[++i]);
+            break;
+        case "--lowe-ratio" when i + 1 < args.Length:
+            loweRatio = double.Parse(args[++i]);
+            break;
+        case "--cluster-eps" when i + 1 < args.Length:
+            clusterEps = double.Parse(args[++i]);
+            break;
+        case "--cluster-min-pts" when i + 1 < args.Length:
+            clusterMinPts = int.Parse(args[++i]);
+            break;
+        case "--morph-kernel" when i + 1 < args.Length:
+            morphKernel = int.Parse(args[++i]);
+            break;
+        case "--threshold-mode" when i + 1 < args.Length:
+            thresholdMode = args[++i];
+            break;
+        case "--percentile-threshold" when i + 1 < args.Length:
+            percentileThreshold = double.Parse(args[++i]);
+            break;
+        case "--fixed-threshold" when i + 1 < args.Length:
+            fixedThreshold = double.Parse(args[++i]);
+            break;
+        case "--min-area-pct" when i + 1 < args.Length:
+            minAreaPct = double.Parse(args[++i]);
             break;
         case "--benchmark":
             bench = true;
@@ -101,7 +187,7 @@ if (runBenchmark)
         Console.WriteLine("--input-dir is required for benchmarking.");
         return;
     }
-    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages);
+    await RunBenchmarkAsync(inputDir, reportDir, workDir, benchEla, benchCm, benchSp, benchIp, benchExif, benchAll, parallelImages, siftFeatures, loweRatio, clusterEps, clusterMinPts, morphKernel, thresholdMode, percentileThreshold, fixedThreshold, minAreaPct);
     return;
 }
 
@@ -143,14 +229,17 @@ static Task RunBenchmarkAsync(
     bool benchIp,
     bool benchExif,
     bool saveReport,
-    int parallelImages)
+    int parallelImages,
+    int siftFeatures,
+    double loweRatio,
+    double clusterEps,
+    int clusterMinPts,
+    int morphKernel,
+    string thresholdMode,
+    double percentileThreshold,
+    double fixedThreshold,
+    double minAreaPct)
 {
-    var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
-        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-        .ToArray();
-
     Directory.CreateDirectory(workDir);
     Directory.CreateDirectory(reportDir);
 
@@ -162,6 +251,18 @@ static Task RunBenchmarkAsync(
         NoiseprintMapDir = workDir,
         MetadataMapDir = workDir
     };
+
+    if (benchCm && Directory.Exists(Path.Combine(inputDir, "fake")) && Directory.Exists(Path.Combine(inputDir, "mask")))
+    {
+        Console.WriteLine("Legacy copy-move benchmark removed; use --copy-move-eval.");
+        return Task.CompletedTask;
+    }
+
+    var files = Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
+        .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
 
     var elaTimes = new ConcurrentBag<long>();
     var cmTimes = new ConcurrentBag<long>();
@@ -199,12 +300,10 @@ static Task RunBenchmarkAsync(
         if (benchCm)
         {
             var sw = Stopwatch.StartNew();
-            var (score, _) = CopyMoveDetector.Analyze(file, workDir,
-                opts.CopyMoveFeatureCount, opts.CopyMoveMatchDistance,
-                opts.CopyMoveRansacReproj, opts.CopyMoveRansacProb);
+            // copy-move detection not implemented in dense pipeline
             sw.Stop();
             cmTimes.Add(sw.ElapsedMilliseconds);
-            record["copyMoveScore"] = score;
+            record["copyMoveScore"] = 0.0;
             record["copyMoveMs"] = sw.ElapsedMilliseconds;
         }
         if (benchSp)
