@@ -18,6 +18,70 @@ if (args.Length == 0)
     return;
 }
 
+// Dedicated copy-move evaluation runner
+if (args[0] == "--copy-move-eval")
+{
+    string cmDataRoot = ".";
+    string cmReportDir = "bench/copymove";
+    int cmBlockSize = 16;
+    int cmStride = 4;
+    int cmK = 5;
+    double cmTau = 0.10;
+    int cmMinShift = 20;
+    double cmEps = 5.0;
+    int cmMinPts = 20;
+    int cmMorphKernel = 5;
+    int cmMinArea = 50;
+    double cmThresholdFixed = -1; // use Otsu if <0
+
+    for (int i = 1; i < args.Length; i++)
+    {
+        switch (args[i])
+        {
+            case "--data-root" when i + 1 < args.Length:
+                cmDataRoot = args[++i];
+                break;
+            case "--report-dir" when i + 1 < args.Length:
+                cmReportDir = args[++i];
+                break;
+            case "--blockSize" when i + 1 < args.Length:
+                cmBlockSize = int.Parse(args[++i]);
+                break;
+            case "--stride" when i + 1 < args.Length:
+                cmStride = int.Parse(args[++i]);
+                break;
+            case "--K" when i + 1 < args.Length:
+                cmK = int.Parse(args[++i]);
+                break;
+            case "--tau" when i + 1 < args.Length:
+                cmTau = double.Parse(args[++i]);
+                break;
+            case "--minShift" when i + 1 < args.Length:
+                cmMinShift = int.Parse(args[++i]);
+                break;
+            case "--eps" when i + 1 < args.Length:
+                cmEps = double.Parse(args[++i]);
+                break;
+            case "--minPts" when i + 1 < args.Length:
+                cmMinPts = int.Parse(args[++i]);
+                break;
+            case "--morphKernel" when i + 1 < args.Length:
+                cmMorphKernel = int.Parse(args[++i]);
+                break;
+            case "--minArea" when i + 1 < args.Length:
+                cmMinArea = int.Parse(args[++i]);
+                break;
+            case "--thresholdFixed" when i + 1 < args.Length:
+                cmThresholdFixed = double.Parse(args[++i]);
+                break;
+        }
+    }
+
+    CopyMoveEvalRunner.Run(cmDataRoot, cmReportDir, cmBlockSize, cmStride, cmK, cmTau,
+        cmMinShift, cmEps, cmMinPts, cmMorphKernel, cmMinArea, cmThresholdFixed);
+    return;
+}
+
 string? image = null;
 string workDir = "results";
 string inputDir = string.Empty;
@@ -204,11 +268,7 @@ static Task RunBenchmarkAsync(
 
     if (benchCm && Directory.Exists(Path.Combine(inputDir, "fake")) && Directory.Exists(Path.Combine(inputDir, "mask")))
     {
-        string csvPath = Path.Combine("bench", "copymove", "metrics.csv");
-        string debugDir = Path.Combine("bench", "copymove", "debug");
-        CopyMoveAnalysisRunner.Run(inputDir, csvPath, debugDir,
-            siftFeatures, loweRatio, clusterEps, clusterMinPts, morphKernel, thresholdMode, percentileThreshold, fixedThreshold, minAreaPct);
-        Console.WriteLine($"Copy-Move metrics written to {csvPath}");
+        Console.WriteLine("Legacy copy-move benchmark removed; use --copy-move-eval.");
         return Task.CompletedTask;
     }
 
@@ -254,12 +314,10 @@ static Task RunBenchmarkAsync(
         if (benchCm)
         {
             var sw = Stopwatch.StartNew();
-            var (score, _) = CopyMoveDetector.Analyze(file, workDir,
-                opts.CopyMoveFeatureCount, opts.CopyMoveMatchDistance,
-                opts.CopyMoveRansacReproj, opts.CopyMoveRansacProb);
+            // copy-move detection not implemented in dense pipeline
             sw.Stop();
             cmTimes.Add(sw.ElapsedMilliseconds);
-            record["copyMoveScore"] = score;
+            record["copyMoveScore"] = 0.0;
             record["copyMoveMs"] = sw.ElapsedMilliseconds;
         }
         if (benchSp)

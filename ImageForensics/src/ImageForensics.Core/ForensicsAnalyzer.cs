@@ -83,26 +83,7 @@ public class ForensicsAnalyzer : IForensicsAnalyzer
         Task<(double, string)> cmTask = Task.FromResult((0d, string.Empty));
         if (options.EnabledChecks.HasFlag(ForensicsCheck.CopyMove))
         {
-            Directory.CreateDirectory(options.CopyMoveMaskDir);
-            Log.Information("Running Copy-Move check");
-            try
-            {
-                cmTask = RunAsync(
-                    () => CopyMoveDetector.Analyze(
-                        imagePath,
-                        options.CopyMoveMaskDir,
-                        options.CopyMoveFeatureCount,
-                        options.CopyMoveMatchDistance,
-                        options.CopyMoveRansacReproj,
-                        options.CopyMoveRansacProb),
-                    (0d, string.Empty),
-                    "Copy-Move");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Copy-Move check failed to start");
-                errors["Copy-Move"] = ex.Message;
-            }
+            Log.Information("Copy-Move check not available in dense pipeline");
         }
 
         Task<(double, string)> spTask = Task.FromResult((0d, string.Empty));
